@@ -1,0 +1,140 @@
+[
+  {
+    "id": "everyday",
+    "nameAr": "الحياة اليومية",
+    "nameEn": "Everyday Life",
+    "icon": "Home"
+  },
+  {
+    "id": "food",
+    "nameAr": "الطعام والشراب",
+    "nameEn": "Food & Drink",
+    "icon": "UtensilsCrossed"
+  },
+  {
+    "id": "travel",
+    "nameAr": "السفر والمواصلات",
+    "nameEn": "Travel & Transport",
+    "icon": "Plane"
+  },
+  {
+    "id": "work",
+    "nameAr": "العمل والمهنة",
+    "nameEn": "Work & Career",
+    "icon": "Briefcase"
+  },
+  {
+    "id": "education",
+    "nameAr": "التعليم والدراسة",
+    "nameEn": "Education & Study",
+    "icon": "GraduationCap"
+  },
+  {
+    "id": "emotions",
+    "nameAr": "المشاعر والعلاقات",
+    "nameEn": "Emotions & Relationships",
+    "icon": "Heart"
+  },
+  {
+    "id": "nature",
+    "nameAr": "الطبيعة والبيئة",
+    "nameEn": "Nature & Environment",
+    "icon": "Trees"
+  },
+  {
+    "id": "technology",
+    "nameAr": "التقنية والعلوم",
+    "nameEn": "Technology & Science",
+    "icon": "Cpu"
+  },
+  {
+    "id": "health",
+    "nameAr": "الصحة والجسم",
+    "nameEn": "Health & Body",
+    "icon": "Activity"
+  },
+  {
+    "id": "society",
+    "nameAr": "المجتمع والثقافة",
+    "nameEn": "Society & Culture",
+    "icon": "Users"
+  },
+  {
+    "id": "family",
+    "nameAr": "العائلة والأقارب",
+    "nameEn": "Family & Relatives",
+    "icon": "Baby"
+  },
+  {
+    "id": "animals",
+    "nameAr": "الحيوانات",
+    "nameEn": "Animals",
+    "icon": "Trees"
+  },
+  {
+    "id": "colors",
+    "nameAr": "الألوان والأشكال",
+    "nameEn": "Colors & Shapes",
+    "icon": "Palette"
+  },
+  {
+    "id": "body",
+    "nameAr": "الجسم والصحة",
+    "nameEn": "Body & Health",
+    "icon": "Activity"
+  },
+  {
+    "id": "school",
+    "nameAr": "المدرسة والدراسة",
+    "nameEn": "School & Study",
+    "icon": "BookOpen"
+  },
+  {
+    "id": "hobbies",
+    "nameAr": "الهوايات والترفيه",
+    "nameEn": "Hobbies & Leisure",
+    "icon": "Heart"
+  },
+  {
+    "id": "shopping",
+    "nameAr": "التسوق والأسواق",
+    "nameEn": "Shopping & Markets",
+    "icon": "Briefcase"
+  },
+  {
+    "id": "weather",
+    "nameAr": "الطقس والفصول",
+    "nameEn": "Weather & Seasons",
+    "icon": "Cloud"
+  },
+  {
+    "id": "transport",
+    "nameAr": "المواصلات والمرور",
+    "nameEn": "Transport & Traffic",
+    "icon": "Car"
+  },
+  {
+    "id": "clothes",
+    "nameAr": "الملابس والأقمشة",
+    "nameEn": "Clothes & Fabrics",
+    "icon": "Shirt"
+  },
+  {
+    "id": "sports",
+    "nameAr": "الرياضة والألعاب",
+    "nameEn": "Sports & Games",
+    "icon": "Trophy"
+  },
+  {
+    "id": "music",
+    "nameAr": "الموسيقى والفنون",
+    "nameEn": "Music & Arts",
+    "icon": "Music"
+  },
+  {
+    "id": "city",
+    "nameAr": "المدينة والبلدة",
+    "nameEn": "City & Town",
+    "icon": "Building2"
+  }
+]

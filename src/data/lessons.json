@@ -1,0 +1,1674 @@
+[
+  {
+    "id": "a1-everyday-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "كلمات أساسية",
+    "titleEn": "Everyday Basics",
+    "descriptionAr": "أشهر الكلمات المستخدمة في الحياة اليومية",
+    "order": 1,
+    "wordIds": [
+      "a1-001",
+      "a1-002",
+      "a1-003",
+      "a1-004",
+      "a1-005",
+      "a1-006",
+      "a1-007",
+      "a1-008"
+    ]
+  },
+  {
+    "id": "a1-food-1",
+    "level": "A1",
+    "category": "food",
+    "titleAr": "الطعام والشراب",
+    "titleEn": "Food & Drink",
+    "descriptionAr": "مفردات أساسية عن الطعام والشراب",
+    "order": 2,
+    "wordIds": [
+      "a1-009",
+      "a1-010",
+      "a1-011",
+      "a1-012",
+      "a1-013",
+      "a1-014",
+      "a1-015",
+      "a1-016"
+    ]
+  },
+  {
+    "id": "a2-travel-1",
+    "level": "A2",
+    "category": "travel",
+    "titleAr": "السفر والمواصلات",
+    "titleEn": "Travel & Transport",
+    "descriptionAr": "كلمات للتنقل والسفر",
+    "order": 1,
+    "wordIds": [
+      "a2-001",
+      "a2-002",
+      "a2-003",
+      "a2-004",
+      "a2-005",
+      "a2-006",
+      "a2-007",
+      "a2-008"
+    ]
+  },
+  {
+    "id": "a2-work-1",
+    "level": "A2",
+    "category": "work",
+    "titleAr": "العمل والمهنة",
+    "titleEn": "Work & Jobs",
+    "descriptionAr": "مفردات عن العمل والوظائف",
+    "order": 2,
+    "wordIds": [
+      "a2-009",
+      "a2-010",
+      "a2-011",
+      "a2-012",
+      "a2-013",
+      "a2-014",
+      "a2-015",
+      "a2-016"
+    ]
+  },
+  {
+    "id": "b1-emotions-1",
+    "level": "B1",
+    "category": "emotions",
+    "titleAr": "المشاعر والعلاقات",
+    "titleEn": "Emotions & Relationships",
+    "descriptionAr": "كلمات للتعبير عن المشاعر والعلاقات",
+    "order": 1,
+    "wordIds": [
+      "b1-001",
+      "b1-002",
+      "b1-003",
+      "b1-004",
+      "b1-005",
+      "b1-006",
+      "b1-007",
+      "b1-008"
+    ]
+  },
+  {
+    "id": "b1-education-1",
+    "level": "B1",
+    "category": "education",
+    "titleAr": "التعليم والدراسة",
+    "titleEn": "Education & Study",
+    "descriptionAr": "مفردات للبيئة الأكاديمية والتعليم",
+    "order": 2,
+    "wordIds": [
+      "b1-009",
+      "b1-010",
+      "b1-011",
+      "b1-012",
+      "b1-013",
+      "b1-014",
+      "b1-015",
+      "b1-016"
+    ]
+  },
+  {
+    "id": "b2-society-1",
+    "level": "B2",
+    "category": "society",
+    "titleAr": "المجتمع والثقافة",
+    "titleEn": "Society & Culture",
+    "descriptionAr": "كلمات للنقاشات الاجتماعية والثقافية",
+    "order": 1,
+    "wordIds": [
+      "b2-001",
+      "b2-002",
+      "b2-003",
+      "b2-004",
+      "b2-005",
+      "b2-006",
+      "b2-007",
+      "b2-008"
+    ]
+  },
+  {
+    "id": "b2-nature-1",
+    "level": "B2",
+    "category": "nature",
+    "titleAr": "الطبيعة والبيئة",
+    "titleEn": "Nature & Environment",
+    "descriptionAr": "مفردات حول البيئة والطبيعة",
+    "order": 2,
+    "wordIds": [
+      "b2-009",
+      "b2-010",
+      "b2-011",
+      "b2-012",
+      "b2-013",
+      "b2-014",
+      "b2-015",
+      "b2-016"
+    ]
+  },
+  {
+    "id": "c1-technology-1",
+    "level": "C1",
+    "category": "technology",
+    "titleAr": "التقنية والابتكار",
+    "titleEn": "Technology & Innovation",
+    "descriptionAr": "مفردات متقدمة في التقنية والعلوم",
+    "order": 1,
+    "wordIds": [
+      "c1-001",
+      "c1-002",
+      "c1-003",
+      "c1-004",
+      "c1-005",
+      "c1-006",
+      "c1-007",
+      "c1-008"
+    ]
+  },
+  {
+    "id": "c1-health-1",
+    "level": "C1",
+    "category": "health",
+    "titleAr": "الصحة والطب",
+    "titleEn": "Health & Medicine",
+    "descriptionAr": "مفردات متقدمة في الصحة والطب",
+    "order": 2,
+    "wordIds": [
+      "c1-009",
+      "c1-010",
+      "c1-011",
+      "c1-012",
+      "c1-013",
+      "c1-014",
+      "c1-015",
+      "c1-016"
+    ]
+  },
+  {
+    "id": "a1-home-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "البيت والأثاث",
+    "titleEn": "Home & Furniture",
+    "descriptionAr": "مفردات عن أثاث المنزل وغرفه",
+    "order": 3,
+    "wordIds": [
+      "a1-017",
+      "a1-018",
+      "a1-019",
+      "a1-020",
+      "a1-021",
+      "a1-022",
+      "a1-023",
+      "a1-024"
+    ]
+  },
+  {
+    "id": "a1-time-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "الوقت والأيام",
+    "titleEn": "Time & Days",
+    "descriptionAr": "كلمات عن الوقت وأيام الأسبوع والشهور",
+    "order": 4,
+    "wordIds": [
+      "a1-025",
+      "a1-026",
+      "a1-027",
+      "a1-028",
+      "a1-029",
+      "a1-030",
+      "a1-031",
+      "a1-032"
+    ]
+  },
+  {
+    "id": "a2-shopping-1",
+    "level": "A2",
+    "category": "travel",
+    "titleAr": "التسوق والملابس",
+    "titleEn": "Shopping & Clothes",
+    "descriptionAr": "مفردات للتسوق وشراء الملابس",
+    "order": 3,
+    "wordIds": [
+      "a2-017",
+      "a2-018",
+      "a2-019",
+      "a2-020",
+      "a2-021",
+      "a2-022",
+      "a2-023",
+      "a2-024"
+    ]
+  },
+  {
+    "id": "a2-communication-1",
+    "level": "A2",
+    "category": "work",
+    "titleAr": "الهاتف والاتصال",
+    "titleEn": "Phone & Communication",
+    "descriptionAr": "مفردات للاتصال والمراسلة في العمل",
+    "order": 4,
+    "wordIds": [
+      "a2-025",
+      "a2-026",
+      "a2-027",
+      "a2-028",
+      "a2-029",
+      "a2-030",
+      "a2-031",
+      "a2-032"
+    ]
+  },
+  {
+    "id": "b1-tourism-1",
+    "level": "B1",
+    "category": "travel",
+    "titleAr": "السفر والسياحة",
+    "titleEn": "Travel & Tourism",
+    "descriptionAr": "مفردات للسياحة واستكشاف الأماكن",
+    "order": 3,
+    "wordIds": [
+      "b1-017",
+      "b1-018",
+      "b1-019",
+      "b1-020",
+      "b1-021",
+      "b1-022",
+      "b1-023",
+      "b1-024"
+    ]
+  },
+  {
+    "id": "b1-reading-1",
+    "level": "B1",
+    "category": "education",
+    "titleAr": "القراءة والكتب",
+    "titleEn": "Reading & Books",
+    "descriptionAr": "مفردات عن القراءة والمكتبات والكتب",
+    "order": 4,
+    "wordIds": [
+      "b1-025",
+      "b1-026",
+      "b1-027",
+      "b1-028",
+      "b1-029",
+      "b1-030",
+      "b1-031",
+      "b1-032"
+    ]
+  },
+  {
+    "id": "b2-politics-1",
+    "level": "B2",
+    "category": "society",
+    "titleAr": "السياسة والحكومة",
+    "titleEn": "Politics & Government",
+    "descriptionAr": "مفردات للنقاشات السياسية والقوانين",
+    "order": 3,
+    "wordIds": [
+      "b2-017",
+      "b2-018",
+      "b2-019",
+      "b2-020",
+      "b2-021",
+      "b2-022",
+      "b2-023",
+      "b2-024"
+    ]
+  },
+  {
+    "id": "b2-weather-1",
+    "level": "B2",
+    "category": "nature",
+    "titleAr": "الطقس والفصول",
+    "titleEn": "Weather & Seasons",
+    "descriptionAr": "مفردات عن الطقس والفصول والظواهر الطبيعية",
+    "order": 4,
+    "wordIds": [
+      "b2-025",
+      "b2-026",
+      "b2-027",
+      "b2-028",
+      "b2-029",
+      "b2-030",
+      "b2-031",
+      "b2-032"
+    ]
+  },
+  {
+    "id": "c1-economy-1",
+    "level": "C1",
+    "category": "work",
+    "titleAr": "الاقتصاد والمال",
+    "titleEn": "Economy & Finance",
+    "descriptionAr": "مفردات متقدمة في الاقتصاد والاستثمار",
+    "order": 3,
+    "wordIds": [
+      "c1-017",
+      "c1-018",
+      "c1-019",
+      "c1-020",
+      "c1-021",
+      "c1-022",
+      "c1-023",
+      "c1-024"
+    ]
+  },
+  {
+    "id": "c1-arts-1",
+    "level": "C1",
+    "category": "society",
+    "titleAr": "الفنون والأدب",
+    "titleEn": "Arts & Literature",
+    "descriptionAr": "مفردات متقدمة في الفن والأدب والإبداع",
+    "order": 4,
+    "wordIds": [
+      "c1-025",
+      "c1-026",
+      "c1-027",
+      "c1-028",
+      "c1-029",
+      "c1-030",
+      "c1-031",
+      "c1-032"
+    ]
+  },
+  {
+    "id": "a1-family-1",
+    "level": "A1",
+    "category": "family",
+    "titleAr": "العائلة والأقارب",
+    "titleEn": "Family & Relatives",
+    "descriptionAr": "مفردات عن أفراد العائلة والأقارب",
+    "order": 5,
+    "wordIds": [
+      "a1-033",
+      "a1-034",
+      "a1-035",
+      "a1-036",
+      "a1-037",
+      "a1-038",
+      "a1-039",
+      "a1-040"
+    ]
+  },
+  {
+    "id": "a1-animals-1",
+    "level": "A1",
+    "category": "animals",
+    "titleAr": "الحيوانات",
+    "titleEn": "Animals",
+    "descriptionAr": "كلمات عن الحيوانات المختلفة",
+    "order": 6,
+    "wordIds": [
+      "a1-041",
+      "a1-042",
+      "a1-043",
+      "a1-044",
+      "a1-045",
+      "a1-046",
+      "a1-047",
+      "a1-048"
+    ]
+  },
+  {
+    "id": "a1-colors-1",
+    "level": "A1",
+    "category": "colors",
+    "titleAr": "الألوان والأشكال",
+    "titleEn": "Colors & Shapes",
+    "descriptionAr": "تعلم أسماء الألوان الأساسية",
+    "order": 7,
+    "wordIds": [
+      "a1-049",
+      "a1-050",
+      "a1-051",
+      "a1-052",
+      "a1-053",
+      "a1-054",
+      "a1-055",
+      "a1-056"
+    ]
+  },
+  {
+    "id": "a1-body-1",
+    "level": "A1",
+    "category": "body",
+    "titleAr": "جسم الإنسان",
+    "titleEn": "Human Body",
+    "descriptionAr": "مفردات عن أجزاء الجسم",
+    "order": 8,
+    "wordIds": [
+      "a1-057",
+      "a1-058",
+      "a1-059",
+      "a1-060",
+      "a1-061",
+      "a1-062",
+      "a1-063",
+      "a1-064"
+    ]
+  },
+  {
+    "id": "a1-school-1",
+    "level": "A1",
+    "category": "school",
+    "titleAr": "المدرسة والقرطاسية",
+    "titleEn": "School & Stationery",
+    "descriptionAr": "كلمات عن المدرسة وأدوات الدراسة",
+    "order": 9,
+    "wordIds": [
+      "a1-065",
+      "a1-066",
+      "a1-067",
+      "a1-068",
+      "a1-069",
+      "a1-070",
+      "a1-071",
+      "a1-072"
+    ]
+  },
+  {
+    "id": "a1-clothes-1",
+    "level": "A1",
+    "category": "clothes",
+    "titleAr": "الملابس والأقمشة",
+    "titleEn": "Clothes & Fabrics",
+    "descriptionAr": "مفردات عن الملابس والإكسسوارات",
+    "order": 10,
+    "wordIds": [
+      "a1-073",
+      "a1-074",
+      "a1-075",
+      "a1-076",
+      "a1-077",
+      "a1-078",
+      "a1-079",
+      "a1-080"
+    ]
+  },
+  {
+    "id": "a1-weather-1",
+    "level": "A1",
+    "category": "weather",
+    "titleAr": "الطقس والسماء",
+    "titleEn": "Weather & Sky",
+    "descriptionAr": "كلمات عن الطقس والظواهر الجوية",
+    "order": 11,
+    "wordIds": [
+      "a1-081",
+      "a1-082",
+      "a1-083",
+      "a1-084",
+      "a1-085",
+      "a1-086",
+      "a1-087",
+      "a1-088"
+    ]
+  },
+  {
+    "id": "a1-food-2",
+    "level": "A1",
+    "category": "food",
+    "titleAr": "طعام إضافي",
+    "titleEn": "More Food",
+    "descriptionAr": "مزيد من مفردات الطعام والشراب",
+    "order": 12,
+    "wordIds": [
+      "a1-089",
+      "a1-090",
+      "a1-091",
+      "a1-092",
+      "a1-093",
+      "a1-094",
+      "a1-095",
+      "a1-096"
+    ]
+  },
+  {
+    "id": "a1-transport-1",
+    "level": "A1",
+    "category": "transport",
+    "titleAr": "المواصلات والمرور",
+    "titleEn": "Transport & Traffic",
+    "descriptionAr": "كلمات عن وسائل النقل والقيادة",
+    "order": 13,
+    "wordIds": [
+      "a1-097",
+      "a1-098",
+      "a1-099",
+      "a1-100",
+      "a1-101",
+      "a1-102",
+      "a1-103",
+      "a1-104"
+    ]
+  },
+  {
+    "id": "a1-city-1",
+    "level": "A1",
+    "category": "city",
+    "titleAr": "المدينة والبلدة",
+    "titleEn": "City & Town",
+    "descriptionAr": "مفردات عن أماكن المدينة والخدمات",
+    "order": 14,
+    "wordIds": [
+      "a1-105",
+      "a1-106",
+      "a1-107",
+      "a1-108",
+      "a1-109",
+      "a1-110",
+      "a1-111",
+      "a1-112"
+    ]
+  },
+  {
+    "id": "a1-hobbies-1",
+    "level": "A1",
+    "category": "hobbies",
+    "titleAr": "الهوايات والترفيه",
+    "titleEn": "Hobbies & Leisure",
+    "descriptionAr": "كلمات عن الأنشطة والهوايات",
+    "order": 15,
+    "wordIds": [
+      "a1-113",
+      "a1-114",
+      "a1-115",
+      "a1-116",
+      "a1-117",
+      "a1-118",
+      "a1-119",
+      "a1-120"
+    ]
+  },
+  {
+    "id": "a1-adjectives-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "صفات أساسية",
+    "titleEn": "Basic Adjectives",
+    "descriptionAr": "صفات شائعة لوصف الأشياء",
+    "order": 16,
+    "wordIds": [
+      "a1-121",
+      "a1-122",
+      "a1-123",
+      "a1-124",
+      "a1-125",
+      "a1-126",
+      "a1-127",
+      "a1-128"
+    ]
+  },
+  {
+    "id": "a2-family-2",
+    "level": "A2",
+    "category": "family",
+    "titleAr": "العائلة الممتدة",
+    "titleEn": "Extended Family",
+    "descriptionAr": "مفردات عن العائلة الممتدة والمناسبات",
+    "order": 5,
+    "wordIds": [
+      "a2-033",
+      "a2-034",
+      "a2-035",
+      "a2-036",
+      "a2-037",
+      "a2-038",
+      "a2-039",
+      "a2-040"
+    ]
+  },
+  {
+    "id": "a2-animals-2",
+    "level": "A2",
+    "category": "animals",
+    "titleAr": "حيوانات إضافية",
+    "titleEn": "More Animals",
+    "descriptionAr": "مفردات عن حيوانات برية وأليفة",
+    "order": 6,
+    "wordIds": [
+      "a2-041",
+      "a2-042",
+      "a2-043",
+      "a2-044",
+      "a2-045",
+      "a2-046",
+      "a2-047",
+      "a2-048"
+    ]
+  },
+  {
+    "id": "a2-sports-1",
+    "level": "A2",
+    "category": "sports",
+    "titleAr": "الرياضة والألعاب",
+    "titleEn": "Sports & Games",
+    "descriptionAr": "مفردات عن الرياضة والمسابقات",
+    "order": 7,
+    "wordIds": [
+      "a2-049",
+      "a2-050",
+      "a2-051",
+      "a2-052",
+      "a2-053",
+      "a2-054",
+      "a2-055",
+      "a2-056"
+    ]
+  },
+  {
+    "id": "a2-health-2",
+    "level": "A2",
+    "category": "health",
+    "titleAr": "الصحة والمرض",
+    "titleEn": "Health & Illness",
+    "descriptionAr": "مفردات عن الصحة والأمراض",
+    "order": 8,
+    "wordIds": [
+      "a2-057",
+      "a2-058",
+      "a2-059",
+      "a2-060",
+      "a2-061",
+      "a2-062",
+      "a2-063",
+      "a2-064"
+    ]
+  },
+  {
+    "id": "a2-shopping-2",
+    "level": "A2",
+    "category": "shopping",
+    "titleAr": "الأسواق والمتاجر",
+    "titleEn": "Markets & Shops",
+    "descriptionAr": "مفردات عن التسوق والبيع والشراء",
+    "order": 9,
+    "wordIds": [
+      "a2-065",
+      "a2-066",
+      "a2-067",
+      "a2-068",
+      "a2-069",
+      "a2-070",
+      "a2-071",
+      "a2-072"
+    ]
+  },
+  {
+    "id": "a2-music-1",
+    "level": "A2",
+    "category": "music",
+    "titleAr": "الموسيقى والفنون",
+    "titleEn": "Music & Arts",
+    "descriptionAr": "مفردات عن الموسيقى والغناء",
+    "order": 10,
+    "wordIds": [
+      "a2-073",
+      "a2-074",
+      "a2-075",
+      "a2-076",
+      "a2-077",
+      "a2-078",
+      "a2-079",
+      "a2-080"
+    ]
+  },
+  {
+    "id": "b1-technology-2",
+    "level": "B1",
+    "category": "technology",
+    "titleAr": "التقنية والبرامج",
+    "titleEn": "Technology & Software",
+    "descriptionAr": "مفردات عن البرامج والشبكات",
+    "order": 5,
+    "wordIds": [
+      "b1-033",
+      "b1-034",
+      "b1-035",
+      "b1-036",
+      "b1-037",
+      "b1-038",
+      "b1-039",
+      "b1-040"
+    ]
+  },
+  {
+    "id": "b1-nature-2",
+    "level": "B1",
+    "category": "nature",
+    "titleAr": "الطبيعة والجغرافيا",
+    "titleEn": "Nature & Geography",
+    "descriptionAr": "مفردات عن التضاريس والمناظر الطبيعية",
+    "order": 6,
+    "wordIds": [
+      "b1-041",
+      "b1-042",
+      "b1-043",
+      "b1-044",
+      "b1-045",
+      "b1-046",
+      "b1-047",
+      "b1-048"
+    ]
+  },
+  {
+    "id": "b1-work-2",
+    "level": "B1",
+    "category": "work",
+    "titleAr": "إدارة المشاريع",
+    "titleEn": "Project Management",
+    "descriptionAr": "مفردات عن المشاريع والمواعيد النهائية",
+    "order": 7,
+    "wordIds": [
+      "b1-049",
+      "b1-050",
+      "b1-051",
+      "b1-052",
+      "b1-053",
+      "b1-054",
+      "b1-055",
+      "b1-056"
+    ]
+  },
+  {
+    "id": "b1-emotions-2",
+    "level": "B1",
+    "category": "emotions",
+    "titleAr": "مشاعر متقدمة",
+    "titleEn": "Advanced Emotions",
+    "descriptionAr": "مفردات للتعبير عن مشاعر أدق",
+    "order": 8,
+    "wordIds": [
+      "b1-057",
+      "b1-058",
+      "b1-059",
+      "b1-060",
+      "b1-061",
+      "b1-062",
+      "b1-063",
+      "b1-064"
+    ]
+  },
+  {
+    "id": "b2-media-1",
+    "level": "B2",
+    "category": "society",
+    "titleAr": "الإعلام والصحافة",
+    "titleEn": "Media & Journalism",
+    "descriptionAr": "مفردات عن الإعلام والصحافة",
+    "order": 5,
+    "wordIds": [
+      "b2-033",
+      "b2-034",
+      "b2-035",
+      "b2-036",
+      "b2-037",
+      "b2-038",
+      "b2-039",
+      "b2-040"
+    ]
+  },
+  {
+    "id": "b2-business-1",
+    "level": "B2",
+    "category": "work",
+    "titleAr": "الأعمال والشركات",
+    "titleEn": "Business & Corporations",
+    "descriptionAr": "مفردات عن إدارة الأعمال والشركات",
+    "order": 6,
+    "wordIds": [
+      "b2-041",
+      "b2-042",
+      "b2-043",
+      "b2-044",
+      "b2-045",
+      "b2-046",
+      "b2-047",
+      "b2-048"
+    ]
+  },
+  {
+    "id": "b2-science-1",
+    "level": "B2",
+    "category": "technology",
+    "titleAr": "العلوم والتجارب",
+    "titleEn": "Science & Experiments",
+    "descriptionAr": "مفردات عن البحث العلمي والتجارب",
+    "order": 7,
+    "wordIds": [
+      "b2-049",
+      "b2-050",
+      "b2-051",
+      "b2-052",
+      "b2-053",
+      "b2-054",
+      "b2-055",
+      "b2-056"
+    ]
+  },
+  {
+    "id": "b2-law-1",
+    "level": "B2",
+    "category": "society",
+    "titleAr": "القضاء والمحاكم",
+    "titleEn": "Courts & Law",
+    "descriptionAr": "مفردات عن المحاكم والقضاء",
+    "order": 8,
+    "wordIds": [
+      "b2-057",
+      "b2-058",
+      "b2-059",
+      "b2-060",
+      "b2-061",
+      "b2-062",
+      "b2-063",
+      "b2-064"
+    ]
+  },
+  {
+    "id": "c1-philosophy-1",
+    "level": "C1",
+    "category": "society",
+    "titleAr": "الفلسفة والأخلاق",
+    "titleEn": "Philosophy & Ethics",
+    "descriptionAr": "مفردات متقدمة في الفلسفة والأخلاق",
+    "order": 5,
+    "wordIds": [
+      "c1-033",
+      "c1-034",
+      "c1-035",
+      "c1-036",
+      "c1-037",
+      "c1-038",
+      "c1-039",
+      "c1-040"
+    ]
+  },
+  {
+    "id": "c1-psychology-1",
+    "level": "C1",
+    "category": "emotions",
+    "titleAr": "علم النفس والسلوك",
+    "titleEn": "Psychology & Behavior",
+    "descriptionAr": "مفردات متقدمة في علم النفس والإدراك",
+    "order": 6,
+    "wordIds": [
+      "c1-041",
+      "c1-042",
+      "c1-043",
+      "c1-044",
+      "c1-045",
+      "c1-046",
+      "c1-047",
+      "c1-048"
+    ]
+  },
+  {
+    "id": "c1-diplomacy-1",
+    "level": "C1",
+    "category": "society",
+    "titleAr": "الدبلوماسية والعلاقات",
+    "titleEn": "Diplomacy & Relations",
+    "descriptionAr": "مفردات متقدمة في الدبلوماسية والمعاهدات",
+    "order": 7,
+    "wordIds": [
+      "c1-049",
+      "c1-050",
+      "c1-051",
+      "c1-052",
+      "c1-053",
+      "c1-054",
+      "c1-055",
+      "c1-056"
+    ]
+  },
+  {
+    "id": "c1-linguistics-1",
+    "level": "C1",
+    "category": "education",
+    "titleAr": "علم اللغة والنحو",
+    "titleEn": "Linguistics & Grammar",
+    "descriptionAr": "مفردات متقدمة في علم اللغة والصرف",
+    "order": 8,
+    "wordIds": [
+      "c1-057",
+      "c1-058",
+      "c1-059",
+      "c1-060",
+      "c1-061",
+      "c1-062",
+      "c1-063",
+      "c1-064"
+    ]
+  },
+  {
+    "id": "a1-numbers-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "الأرقام والعدّ",
+    "titleEn": "Numbers & Counting",
+    "descriptionAr": "تعلم الأرقام الأساسية والعَدّ",
+    "order": 17,
+    "wordIds": [
+      "a1-129",
+      "a1-130",
+      "a1-131",
+      "a1-132",
+      "a1-133",
+      "a1-134",
+      "a1-135",
+      "a1-136"
+    ]
+  },
+  {
+    "id": "a1-verbs1-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "أفعال شائعة 1",
+    "titleEn": "Common Verbs 1",
+    "descriptionAr": "أفعال أساسية مستخدمة يومياً",
+    "order": 18,
+    "wordIds": [
+      "a1-137",
+      "a1-138",
+      "a1-139",
+      "a1-140",
+      "a1-141",
+      "a1-142",
+      "a1-143",
+      "a1-144"
+    ]
+  },
+  {
+    "id": "a1-verbs2-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "أفعال شائعة 2",
+    "titleEn": "Common Verbs 2",
+    "descriptionAr": "مزيد من الأفعال الأساسية",
+    "order": 19,
+    "wordIds": [
+      "a1-145",
+      "a1-146",
+      "a1-147",
+      "a1-148",
+      "a1-149",
+      "a1-150",
+      "a1-151",
+      "a1-152"
+    ]
+  },
+  {
+    "id": "a1-city2-1",
+    "level": "A1",
+    "category": "city",
+    "titleAr": "أماكن المدينة 2",
+    "titleEn": "City Places 2",
+    "descriptionAr": "مزيد من أماكن المدينة والخدمات",
+    "order": 20,
+    "wordIds": [
+      "a1-153",
+      "a1-154",
+      "a1-155",
+      "a1-156",
+      "a1-157",
+      "a1-158",
+      "a1-159",
+      "a1-160"
+    ]
+  },
+  {
+    "id": "a1-fruits-1",
+    "level": "A1",
+    "category": "food",
+    "titleAr": "الفواكه والخضروات",
+    "titleEn": "Fruits & Vegetables",
+    "descriptionAr": "أسماء الفواكه والخضروات الشائعة",
+    "order": 21,
+    "wordIds": [
+      "a1-161",
+      "a1-162",
+      "a1-163",
+      "a1-164",
+      "a1-165",
+      "a1-166",
+      "a1-167",
+      "a1-168"
+    ]
+  },
+  {
+    "id": "a1-pronouns-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "ضمائر وأسماء",
+    "titleEn": "Pronouns & Nouns",
+    "descriptionAr": "الضمائر الأساسية في الإنجليزية",
+    "order": 22,
+    "wordIds": [
+      "a1-169",
+      "a1-170",
+      "a1-171",
+      "a1-172",
+      "a1-173",
+      "a1-174",
+      "a1-175",
+      "a1-176"
+    ]
+  },
+  {
+    "id": "a1-weekdays-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "أيام الأسبوع",
+    "titleEn": "Days of the Week",
+    "descriptionAr": "أسماء أيام الأسبوع بالإنجليزية",
+    "order": 23,
+    "wordIds": [
+      "a1-177",
+      "a1-178",
+      "a1-179",
+      "a1-180",
+      "a1-181",
+      "a1-182",
+      "a1-183",
+      "a1-184"
+    ]
+  },
+  {
+    "id": "a1-months-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "أشهر السنة",
+    "titleEn": "Months of the Year",
+    "descriptionAr": "أسماء أشهر السنة بالإنجليزية",
+    "order": 24,
+    "wordIds": [
+      "a1-185",
+      "a1-186",
+      "a1-187",
+      "a1-188",
+      "a1-189",
+      "a1-190",
+      "a1-191",
+      "a1-192"
+    ]
+  },
+  {
+    "id": "a1-adjectives2-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "صفات إضافية",
+    "titleEn": "More Adjectives",
+    "descriptionAr": "صفات شائعة لوصف الأشياء",
+    "order": 25,
+    "wordIds": [
+      "a1-193",
+      "a1-194",
+      "a1-195",
+      "a1-196",
+      "a1-197",
+      "a1-198",
+      "a1-199",
+      "a1-200"
+    ]
+  },
+  {
+    "id": "a1-kitchen-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "أدوات المنزل 2",
+    "titleEn": "Kitchen & Home Tools",
+    "descriptionAr": "مفردات عن أدوات المطبخ والمنزل",
+    "order": 26,
+    "wordIds": [
+      "a1-201",
+      "a1-202",
+      "a1-203",
+      "a1-204",
+      "a1-205",
+      "a1-206",
+      "a1-207",
+      "a1-208"
+    ]
+  },
+  {
+    "id": "a1-public-1",
+    "level": "A1",
+    "category": "city",
+    "titleAr": "أماكن عامة",
+    "titleEn": "Public Places",
+    "descriptionAr": "أماكن عامة في المدينة",
+    "order": 27,
+    "wordIds": [
+      "a1-209",
+      "a1-210",
+      "a1-211",
+      "a1-212",
+      "a1-213",
+      "a1-214",
+      "a1-215",
+      "a1-216"
+    ]
+  },
+  {
+    "id": "a1-conjunctions-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "حروف الوصل",
+    "titleEn": "Conjunctions & Prepositions",
+    "descriptionAr": "حروف العطف والجرة الأساسية",
+    "order": 28,
+    "wordIds": [
+      "a1-217",
+      "a1-218",
+      "a1-219",
+      "a1-220",
+      "a1-221",
+      "a1-222",
+      "a1-223",
+      "a1-224"
+    ]
+  },
+  {
+    "id": "a1-action-verbs-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "أفعال حركة",
+    "titleEn": "Action Verbs",
+    "descriptionAr": "أفعال الحركة والنشاط اليومي",
+    "order": 29,
+    "wordIds": [
+      "a1-225",
+      "a1-226",
+      "a1-227",
+      "a1-228",
+      "a1-229",
+      "a1-230",
+      "a1-231",
+      "a1-232"
+    ]
+  },
+  {
+    "id": "a1-questions-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "سؤال وجواب",
+    "titleEn": "Questions & Answers",
+    "descriptionAr": "كلمات السؤال والإجابة",
+    "order": 30,
+    "wordIds": [
+      "a1-233",
+      "a1-234",
+      "a1-235",
+      "a1-236",
+      "a1-237",
+      "a1-238",
+      "a1-239",
+      "a1-240"
+    ]
+  },
+  {
+    "id": "a1-feelings-1",
+    "level": "A1",
+    "category": "emotions",
+    "titleAr": "مشاعر بسيطة",
+    "titleEn": "Simple Feelings",
+    "descriptionAr": "كلمات للتعبير عن المشاعر البسيطة",
+    "order": 31,
+    "wordIds": [
+      "a1-241",
+      "a1-242",
+      "a1-243",
+      "a1-244",
+      "a1-245",
+      "a1-246",
+      "a1-247",
+      "a1-248"
+    ]
+  },
+  {
+    "id": "a1-people-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "أشخاص وصفات",
+    "titleEn": "People & Descriptions",
+    "descriptionAr": "كلمات عن الأشخاص والصفات",
+    "order": 32,
+    "wordIds": [
+      "a1-249",
+      "a1-250",
+      "a1-251",
+      "a1-252",
+      "a1-253",
+      "a1-254",
+      "a1-255",
+      "a1-256"
+    ]
+  },
+  {
+    "id": "a1-nature-1",
+    "level": "A1",
+    "category": "nature",
+    "titleAr": "طبيعة بسيطة",
+    "titleEn": "Simple Nature",
+    "descriptionAr": "كلمات بسيطة عن الطبيعة",
+    "order": 33,
+    "wordIds": [
+      "a1-257",
+      "a1-258",
+      "a1-259",
+      "a1-260",
+      "a1-261",
+      "a1-262",
+      "a1-263",
+      "a1-264"
+    ]
+  },
+  {
+    "id": "a1-food3-1",
+    "level": "A1",
+    "category": "food",
+    "titleAr": "أطعمة إضافية 2",
+    "titleEn": "More Food 2",
+    "descriptionAr": "مزيد من مفردات الطعام",
+    "order": 34,
+    "wordIds": [
+      "a1-265",
+      "a1-266",
+      "a1-267",
+      "a1-268",
+      "a1-269",
+      "a1-270",
+      "a1-271",
+      "a1-272"
+    ]
+  },
+  {
+    "id": "a1-colors2-1",
+    "level": "A1",
+    "category": "colors",
+    "titleAr": "ألوان إضافية",
+    "titleEn": "More Colors",
+    "descriptionAr": "مزيد من أسماء الألوان",
+    "order": 35,
+    "wordIds": [
+      "a1-273",
+      "a1-274",
+      "a1-275",
+      "a1-276",
+      "a1-277",
+      "a1-278",
+      "a1-279",
+      "a1-280"
+    ]
+  },
+  {
+    "id": "a1-verbs3-1",
+    "level": "A1",
+    "category": "everyday",
+    "titleAr": "أفعال إضافية",
+    "titleEn": "More Verbs",
+    "descriptionAr": "أفعال يومية إضافية",
+    "order": 36,
+    "wordIds": [
+      "a1-281",
+      "a1-282",
+      "a1-283",
+      "a1-284",
+      "a1-285",
+      "a1-286",
+      "a1-287",
+      "a1-288"
+    ]
+  },
+  {
+    "id": "a2-seasons-1",
+    "level": "A2",
+    "category": "weather",
+    "titleAr": "فصول وتوقعات الطقس",
+    "titleEn": "Seasons & Forecast",
+    "descriptionAr": "مفردات عن الفصول وتوقعات الطقس",
+    "order": 11,
+    "wordIds": [
+      "a2-081",
+      "a2-082",
+      "a2-083",
+      "a2-084",
+      "a2-085",
+      "a2-086",
+      "a2-087",
+      "a2-088"
+    ]
+  },
+  {
+    "id": "a2-meals-1",
+    "level": "A2",
+    "category": "food",
+    "titleAr": "وجبات ووصفات",
+    "titleEn": "Meals & Recipes",
+    "descriptionAr": "مفردات عن الوجبات والطبخ",
+    "order": 12,
+    "wordIds": [
+      "a2-089",
+      "a2-090",
+      "a2-091",
+      "a2-092",
+      "a2-093",
+      "a2-094",
+      "a2-095",
+      "a2-096"
+    ]
+  },
+  {
+    "id": "a2-jobs-1",
+    "level": "A2",
+    "category": "work",
+    "titleAr": "وظائف إضافية",
+    "titleEn": "More Jobs",
+    "descriptionAr": "مفردات عن مهن إضافية",
+    "order": 13,
+    "wordIds": [
+      "a2-097",
+      "a2-098",
+      "a2-099",
+      "a2-100",
+      "a2-101",
+      "a2-102",
+      "a2-103",
+      "a2-104"
+    ]
+  },
+  {
+    "id": "a2-hobbies2-1",
+    "level": "A2",
+    "category": "hobbies",
+    "titleAr": "هوايات إضافية",
+    "titleEn": "More Hobbies",
+    "descriptionAr": "مفردات عن هوايات وأنشطة إضافية",
+    "order": 14,
+    "wordIds": [
+      "a2-105",
+      "a2-106",
+      "a2-107",
+      "a2-108",
+      "a2-109",
+      "a2-110",
+      "a2-111",
+      "a2-112"
+    ]
+  },
+  {
+    "id": "a2-tech-1",
+    "level": "A2",
+    "category": "technology",
+    "titleAr": "تكنولوجيا بسيطة",
+    "titleEn": "Basic Technology",
+    "descriptionAr": "مفردات عن الأجهزة والتقنية",
+    "order": 15,
+    "wordIds": [
+      "a2-113",
+      "a2-114",
+      "a2-115",
+      "a2-116",
+      "a2-117",
+      "a2-118",
+      "a2-119",
+      "a2-120"
+    ]
+  },
+  {
+    "id": "a2-destinations-1",
+    "level": "A2",
+    "category": "travel",
+    "titleAr": "أماكن سياحية",
+    "titleEn": "Tourist Destinations",
+    "descriptionAr": "مفردات عن المعالم السياحية الطبيعية",
+    "order": 16,
+    "wordIds": [
+      "a2-121",
+      "a2-122",
+      "a2-123",
+      "a2-124",
+      "a2-125",
+      "a2-126",
+      "a2-127",
+      "a2-128"
+    ]
+  },
+  {
+    "id": "b1-tech2-1",
+    "level": "B1",
+    "category": "technology",
+    "titleAr": "تقنية متقدمة",
+    "titleEn": "Advanced Technology",
+    "descriptionAr": "مفردات متقدمة في التقنية والبرمجيات",
+    "order": 9,
+    "wordIds": [
+      "b1-065",
+      "b1-066",
+      "b1-067",
+      "b1-068",
+      "b1-069",
+      "b1-070",
+      "b1-071",
+      "b1-072"
+    ]
+  },
+  {
+    "id": "b1-environment-1",
+    "level": "B1",
+    "category": "nature",
+    "titleAr": "بيئة وحفظ الطبيعة",
+    "titleEn": "Environment & Conservation",
+    "descriptionAr": "مفردات عن البيئة وحماية الطبيعة",
+    "order": 10,
+    "wordIds": [
+      "b1-073",
+      "b1-074",
+      "b1-075",
+      "b1-076",
+      "b1-077",
+      "b1-078",
+      "b1-079",
+      "b1-080"
+    ]
+  },
+  {
+    "id": "b1-relationships-1",
+    "level": "B1",
+    "category": "emotions",
+    "titleAr": "علاقات متقدمة",
+    "titleEn": "Advanced Relationships",
+    "descriptionAr": "مفردات عن العلاقات والمشاعر العميقة",
+    "order": 11,
+    "wordIds": [
+      "b1-081",
+      "b1-082",
+      "b1-083",
+      "b1-084",
+      "b1-085",
+      "b1-086",
+      "b1-087",
+      "b1-088"
+    ]
+  },
+  {
+    "id": "b1-academic-1",
+    "level": "B1",
+    "category": "education",
+    "titleAr": "تعليم أكاديمي",
+    "titleEn": "Academic Education",
+    "descriptionAr": "مفردات عن التعليم العالي والأكاديمي",
+    "order": 12,
+    "wordIds": [
+      "b1-089",
+      "b1-090",
+      "b1-091",
+      "b1-092",
+      "b1-093",
+      "b1-094",
+      "b1-095",
+      "b1-096"
+    ]
+  },
+  {
+    "id": "b2-economy2-1",
+    "level": "B2",
+    "category": "work",
+    "titleAr": "اقتصاد متقدم",
+    "titleEn": "Advanced Economy",
+    "descriptionAr": "مفردات متقدمة في الاقتصاد",
+    "order": 9,
+    "wordIds": [
+      "b2-065",
+      "b2-066",
+      "b2-067",
+      "b2-068",
+      "b2-069",
+      "b2-070",
+      "b2-071",
+      "b2-072"
+    ]
+  },
+  {
+    "id": "b2-culture-1",
+    "level": "B2",
+    "category": "society",
+    "titleAr": "ثقافة وهوية",
+    "titleEn": "Culture & Identity",
+    "descriptionAr": "مفردات عن الثقافة والهوية والتنوع",
+    "order": 10,
+    "wordIds": [
+      "b2-073",
+      "b2-074",
+      "b2-075",
+      "b2-076",
+      "b2-077",
+      "b2-078",
+      "b2-079",
+      "b2-080"
+    ]
+  },
+  {
+    "id": "b2-environment2-1",
+    "level": "B2",
+    "category": "nature",
+    "titleAr": "بيئة وعلوم",
+    "titleEn": "Environment & Science",
+    "descriptionAr": "مفردات عن البيئة والعلوم",
+    "order": 11,
+    "wordIds": [
+      "b2-081",
+      "b2-082",
+      "b2-083",
+      "b2-084",
+      "b2-085",
+      "b2-086",
+      "b2-087",
+      "b2-088"
+    ]
+  },
+  {
+    "id": "b2-politics2-1",
+    "level": "B2",
+    "category": "society",
+    "titleAr": "سياسة متقدمة",
+    "titleEn": "Advanced Politics",
+    "descriptionAr": "مفردات متقدمة في السياسة والحكم",
+    "order": 12,
+    "wordIds": [
+      "b2-089",
+      "b2-090",
+      "b2-091",
+      "b2-092",
+      "b2-093",
+      "b2-094",
+      "b2-095",
+      "b2-096"
+    ]
+  },
+  {
+    "id": "c1-philosophy2-1",
+    "level": "C1",
+    "category": "society",
+    "titleAr": "فلسفة متقدمة",
+    "titleEn": "Advanced Philosophy",
+    "descriptionAr": "مفردات متقدمة في الفلسفة والمدارس الفكرية",
+    "order": 9,
+    "wordIds": [
+      "c1-065",
+      "c1-066",
+      "c1-067",
+      "c1-068",
+      "c1-069",
+      "c1-070",
+      "c1-071",
+      "c1-072"
+    ]
+  },
+  {
+    "id": "c1-psychology2-1",
+    "level": "C1",
+    "category": "emotions",
+    "titleAr": "علم نفس متقدم",
+    "titleEn": "Advanced Psychology",
+    "descriptionAr": "مفردات متقدمة في علم النفس والسلوك",
+    "order": 10,
+    "wordIds": [
+      "c1-073",
+      "c1-074",
+      "c1-075",
+      "c1-076",
+      "c1-077",
+      "c1-078",
+      "c1-079",
+      "c1-080"
+    ]
+  },
+  {
+    "id": "c1-diplomacy2-1",
+    "level": "C1",
+    "category": "society",
+    "titleAr": "دبلوماسية متقدمة",
+    "titleEn": "Advanced Diplomacy",
+    "descriptionAr": "مفردات متقدمة في الدبلوماسية والعلاقات الدولية",
+    "order": 11,
+    "wordIds": [
+      "c1-081",
+      "c1-082",
+      "c1-083",
+      "c1-084",
+      "c1-085",
+      "c1-086",
+      "c1-087",
+      "c1-088"
+    ]
+  },
+  {
+    "id": "c1-linguistics2-1",
+    "level": "C1",
+    "category": "education",
+    "titleAr": "لغويات متقدمة",
+    "titleEn": "Advanced Linguistics",
+    "descriptionAr": "مفردات متقدمة في علم اللغة والنحو",
+    "order": 12,
+    "wordIds": [
+      "c1-089",
+      "c1-090",
+      "c1-091",
+      "c1-092",
+      "c1-093",
+      "c1-094",
+      "c1-095",
+      "c1-096"
+    ]
+  }
+]
