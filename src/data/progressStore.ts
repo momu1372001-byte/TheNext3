@@ -1,14 +1,34 @@
+
 import type { LevelCode, Word } from '@/types';
 import { getWordsByLevel, getAllLevels, getWordById } from '@/data/vocabularyRepository';
 import { ACHIEVEMENTS } from '@/data/achievements';
 
-const STORAGE_KEY = 'words-app-progress-v1';
+const LEGACY_STORAGE_KEY = 'words-app-progress-v1';
+const LEGACY_SESSION_KEY = 'words-app-session-v1';
+
+/**
+ * Each authenticated user has a separate local progress store.
+ * Guest progress is stored separately from authenticated users.
+ */
+let activeUserId: string | null = null;
+
+function getStorageKey(): string {
+  return activeUserId
+    ? `${LEGACY_STORAGE_KEY}:${activeUserId}`
+    : `${LEGACY_STORAGE_KEY}:guest`;
+}
+
+function getSessionStorageKey(): string {
+  return activeUserId
+    ? `${LEGACY_SESSION_KEY}:${activeUserId}`
+    : `${LEGACY_SESSION_KEY}:guest`;
+}
 
 export type WordStatus = 'new' | 'learning' | 'reviewed';
 
 export type LessonProgress = {
   completed: boolean;
-  bestScore: number; // 0-100
+  bestScore: number;
   completedAt: string | null;
 };
 
@@ -57,10 +77,17 @@ const INITIAL_STATE: ProgressState = {
 
 function load(): ProgressState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...INITIAL_STATE };
+    const raw = localStorage.getItem(getStorageKey());
+
+    if (!raw) {
+      return { ...INITIAL_STATE };
+    }
+
     const parsed = JSON.parse(raw) as Partial<ProgressState>;
+
     return {
+      ...INITIAL_STATE,
+      ...parsed,
       lessons: parsed.lessons ?? {},
       learnedWordIds: parsed.learnedWordIds ?? [],
       streak: parsed.streak ?? 0,
@@ -73,24 +100,53 @@ function load(): ProgressState {
       bestSessionAccuracy: parsed.bestSessionAccuracy ?? 0,
       dailyGoalsCompleted: parsed.dailyGoalsCompleted ?? 0,
     };
-  } catch {
+  } catch (error) {
+    console.error('Failed to load local progress:', error);
     return { ...INITIAL_STATE };
   }
 }
 
-function save(state: ProgressState) {
+function save(state: ProgressState): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore quota errors
+    localStorage.setItem(getStorageKey(), JSON.stringify(state));
+  } catch (error) {
+    console.error('Failed to save local progress:', error);
   }
 }
 
 const listeners = new Set<() => void>();
+
 let currentState: ProgressState = load();
 
-function notify() {
-  listeners.forEach((fn) => fn());
+function notify(): void {
+  listeners.forEach((fn) => {
+    try {
+      fn();
+    } catch (error) {
+      console.error('Progress listener failed:', error);
+    }
+  });
+}
+
+/**
+ * Switch the active local progress store.
+ *
+ * Call this when authentication changes, before loading the user's
+ * profile from Supabase. Passing null selects the guest store.
+ *
+ * This function deliberately does not merge progress between accounts.
+ */
+export function setProgressUser(userId: string | null): void {
+  const nextUserId = userId || null;
+
+  if (activeUserId === nextUserId) {
+    return;
+  }
+
+  activeUserId = nextUserId;
+  currentState = load();
+
+  notify();
 }
 
 export function getProgress(): ProgressState {
@@ -110,7 +166,10 @@ export function getLessonProgress(lessonId: string): LessonProgress | undefined 
   return currentState.lessons[lessonId];
 }
 
-export function getCompletedLessonsForLevel(_level: LevelCode, lessonIds: string[]): number {
+export function getCompletedLessonsForLevel(
+  _level: LevelCode,
+  lessonIds: string[],
+): number {
   return lessonIds.filter((id) => currentState.lessons[id]?.completed).length;
 }
 
@@ -126,8 +185,13 @@ export function getWordProgress(wordId: string): WordProgress | undefined {
   return currentState.words[wordId];
 }
 
-function bumpActivity(state: ProgressState, today: string, newlyLearned: number): ActivityLog {
+function bumpActivity(
+  state: ProgressState,
+  today: string,
+  newlyLearned: number,
+): ActivityLog {
   if (newlyLearned <= 0) return state.activityLog;
+
   const prev = state.activityLog[today] ?? 0;
   return { ...state.activityLog, [today]: prev + newlyLearned };
 }
@@ -146,23 +210,30 @@ export function recordWordAnswer(wordId: string, correct: boolean): void {
     },
     xp: currentState.xp + (correct ? 5 : 1),
   };
+
   save(currentState);
   notify();
 }
 
-export function markLessonComplete(lessonId: string, score: number, wordIds: string[]): void {
+export function markLessonComplete(
+  lessonId: string,
+  score: number,
+  wordIds: string[],
+): void {
   const existing = currentState.lessons[lessonId];
   const today = new Date().toISOString().slice(0, 10);
 
   const prevLearned = new Set(currentState.learnedWordIds);
   wordIds.forEach((id) => prevLearned.add(id));
+
   const newlyLearned = prevLearned.size - currentState.learnedWordIds.length;
 
-  const streak = currentState.lastActiveDate === today
-    ? currentState.streak
-    : currentState.lastActiveDate
-      ? currentState.streak + 1
-      : 1;
+  const streak =
+    currentState.lastActiveDate === today
+      ? currentState.streak
+      : currentState.lastActiveDate
+        ? currentState.streak + 1
+        : 1;
 
   currentState = {
     ...currentState,
@@ -180,6 +251,7 @@ export function markLessonComplete(lessonId: string, score: number, wordIds: str
     xp: currentState.xp + 25 + Math.round(score / 4),
     activityLog: bumpActivity(currentState, today, newlyLearned),
   };
+
   save(currentState);
   notify();
 }
@@ -207,10 +279,10 @@ export function getReviewWords(): ReviewEntry[] {
 
     if (!hasWrong && !isLearning) continue;
 
-    // Weight: words with more wrongs appear more frequently.
-    // Each wrong answer doubles the weight (exponential), so a word
-    // answered wrong 3x is 8x more likely to appear than one wrong 1x.
-    const weight = Math.max(1, (progress.wrongCount + 1) * (isLearning ? 2 : 1));
+    const weight = Math.max(
+      1,
+      (progress.wrongCount + 1) * (isLearning ? 2 : 1),
+    );
 
     entries.push({
       wordId,
@@ -221,7 +293,6 @@ export function getReviewWords(): ReviewEntry[] {
     });
   }
 
-  // Sort by wrongCount desc, then by status (learning before reviewed)
   entries.sort((a, b) => {
     if (b.wrongCount !== a.wrongCount) return b.wrongCount - a.wrongCount;
     if (a.status === 'learning' && b.status !== 'learning') return -1;
@@ -233,8 +304,8 @@ export function getReviewWords(): ReviewEntry[] {
 }
 
 /* ------------------------------------------------------------------ */
-/* Daily session — generates a mixed set of new + due review words
-/* based on the user's level and daily goal.
+/* Daily session — generates a mixed set of new + due review words     */
+/* based on the user's level and daily goal.                           */
 /* ------------------------------------------------------------------ */
 
 export type DailySession = {
@@ -244,14 +315,14 @@ export type DailySession = {
   done: boolean;
 };
 
-const SESSION_KEY = 'words-app-session-v1';
-
 function loadSession(): DailySession | null {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
+    const raw = localStorage.getItem(getSessionStorageKey());
     if (!raw) return null;
+
     const parsed = JSON.parse(raw) as DailySession;
     const today = dateKey(new Date());
+
     if (parsed.date !== today) return null;
     return parsed;
   } catch {
@@ -261,17 +332,27 @@ function loadSession(): DailySession | null {
 
 function saveSession(session: DailySession): void {
   try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } catch {
-    // ignore
+    localStorage.setItem(getSessionStorageKey(), JSON.stringify(session));
+  } catch (error) {
+    console.error('Failed to save daily session:', error);
   }
 }
 
 function pickNewWords(level: LevelCode, count: number): string[] {
   const levelWords = getWordsByLevel(level);
   const learnedSet = new Set(currentState.learnedWordIds);
-  const fresh = levelWords.filter((w) => !learnedSet.has(w.id) && currentState.words[w.id]?.status !== 'learning');
-  const pool = fresh.length >= count ? fresh : levelWords.filter((w) => !learnedSet.has(w.id));
+
+  const fresh = levelWords.filter(
+    (w) =>
+      !learnedSet.has(w.id) &&
+      currentState.words[w.id]?.status !== 'learning',
+  );
+
+  const pool =
+    fresh.length >= count
+      ? fresh
+      : levelWords.filter((w) => !learnedSet.has(w.id));
+
   return shuffleIds(pool.map((w) => w.id)).slice(0, count);
 }
 
@@ -282,26 +363,35 @@ function pickReviewWords(count: number): string[] {
 
 function shuffleIds<T>(arr: T[]): T[] {
   const a = [...arr];
+
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
+
   return a;
 }
 
-export function getOrCreateDailySession(level: LevelCode, dailyGoal: number): DailySession {
+export function getOrCreateDailySession(
+  level: LevelCode,
+  dailyGoal: number,
+): DailySession {
   const existing = loadSession();
   if (existing) return existing;
 
-  const reviewBudget = Math.min(Math.floor(dailyGoal * 0.4), getReviewWords().length);
+  const reviewBudget = Math.min(
+    Math.floor(dailyGoal * 0.4),
+    getReviewWords().length,
+  );
+
   const newBudget = dailyGoal - reviewBudget;
 
   const newIds = pickNewWords(level, newBudget);
   const reviewIds = pickReviewWords(reviewBudget);
 
-  // Deduplicate (a word could theoretically be in both)
   const seen = new Set<string>();
   const wordIds: string[] = [];
+
   for (const id of [...reviewIds, ...newIds]) {
     if (!seen.has(id)) {
       seen.add(id);
@@ -315,6 +405,7 @@ export function getOrCreateDailySession(level: LevelCode, dailyGoal: number): Da
     completedCount: 0,
     done: wordIds.length === 0,
   };
+
   saveSession(session);
   return session;
 }
@@ -323,43 +414,61 @@ export function getDailySession(): DailySession | null {
   return loadSession();
 }
 
-export function recordSessionWord(wordId: string, correct: boolean): DailySession {
+export function recordSessionWord(
+  wordId: string,
+  correct: boolean,
+): DailySession {
   recordWordAnswer(wordId, correct);
 
   const session = loadSession();
+
   if (!session) {
-    // No active session — still recorded the answer, just no session to update
-    return { date: dateKey(new Date()), wordIds: [], completedCount: 0, done: true };
+    return {
+      date: dateKey(new Date()),
+      wordIds: [],
+      completedCount: 0,
+      done: true,
+    };
   }
 
-  // Only count as "completed" if the word was newly learned or reviewed correctly
-  const isLearned = currentState.learnedWordIds.includes(wordId)
-    || currentState.words[wordId]?.status === 'reviewed'
-    || correct;
+  const isLearned =
+    currentState.learnedWordIds.includes(wordId) ||
+    currentState.words[wordId]?.status === 'reviewed' ||
+    correct;
 
-  const completedCount = isLearned ? session.completedCount + 1 : session.completedCount;
+  const completedCount = isLearned
+    ? session.completedCount + 1
+    : session.completedCount;
+
   const done = completedCount >= session.wordIds.length;
 
   const updated: DailySession = { ...session, completedCount, done };
   saveSession(updated);
+
   return updated;
 }
 
-export function completeDailySession(): { xpGained: number; newStreak: number } {
+export function completeDailySession(): {
+  xpGained: number;
+  newStreak: number;
+} {
   const session = loadSession();
+
   if (!session || session.done) {
     return { xpGained: 0, newStreak: currentState.streak };
   }
 
   const today = dateKey(new Date());
-  const newWordIds = session.wordIds.filter((id) => !currentState.learnedWordIds.includes(id));
 
-  // Add newly learned words to the learned set
+  const newWordIds = session.wordIds.filter(
+    (id) => !currentState.learnedWordIds.includes(id),
+  );
+
   const learnedSet = new Set(currentState.learnedWordIds);
   newWordIds.forEach((id) => learnedSet.add(id));
 
-  // Bump streak only once per day
   let streak = currentState.streak;
+
   if (currentState.lastActiveDate !== today) {
     streak = currentState.lastActiveDate
       ? currentState.streak + 1
@@ -367,22 +476,32 @@ export function completeDailySession(): { xpGained: number; newStreak: number } 
   }
 
   const xpGained = 25 + session.wordIds.length * 5;
-
   const newlyLearned = learnedSet.size - currentState.learnedWordIds.length;
+
   currentState = {
     ...currentState,
     learnedWordIds: [...learnedSet],
     streak,
     lastActiveDate: today,
     xp: currentState.xp + xpGained,
-    activityLog: bumpActivity(currentState, today, Math.max(newlyLearned, session.wordIds.length)),
+    activityLog: bumpActivity(
+      currentState,
+      today,
+      Math.max(newlyLearned, session.wordIds.length),
+    ),
   };
+
   save(currentState);
 
-  const updatedSession: DailySession = { ...session, done: true, completedCount: session.wordIds.length };
-  saveSession(updatedSession);
+  const updatedSession: DailySession = {
+    ...session,
+    done: true,
+    completedCount: session.wordIds.length,
+  };
 
+  saveSession(updatedSession);
   notify();
+
   return { xpGained, newStreak: streak };
 }
 
@@ -391,25 +510,35 @@ export function isDailySessionDone(): boolean {
   return !session || session.done;
 }
 
-export function getDailySessionProgress(): { completed: number; total: number } {
+export function getDailySessionProgress(): {
+  completed: number;
+  total: number;
+} {
   const session = loadSession();
+
   if (!session) return { completed: 0, total: 0 };
-  return { completed: session.completedCount, total: session.wordIds.length };
+
+  return {
+    completed: session.completedCount,
+    total: session.wordIds.length,
+  };
 }
 
 export function resetProgress(): void {
   currentState = { ...INITIAL_STATE };
   save(currentState);
+
   try {
-    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(getSessionStorageKey());
   } catch {
-    // ignore
+    // Ignore storage errors.
   }
+
   notify();
 }
 
 /* ------------------------------------------------------------------ */
-/* Achievements
+/* Achievements                                                        */
 /* ------------------------------------------------------------------ */
 
 export function getUnlockedAchievements(): string[] {
@@ -423,6 +552,7 @@ export function checkAndUnlockAchievements(): string[] {
     if (currentState.unlockedAchievements.includes(achievement.id)) continue;
 
     let value = 0;
+
     switch (achievement.category) {
       case 'streak':
         value = currentState.streak;
@@ -434,7 +564,9 @@ export function checkAndUnlockAchievements(): string[] {
         value = currentState.learnedWordIds.length;
         break;
       case 'lessons':
-        value = Object.values(currentState.lessons).filter((l) => l.completed).length;
+        value = Object.values(currentState.lessons).filter(
+          (lesson) => lesson.completed,
+        ).length;
         break;
       case 'accuracy':
         value = currentState.bestSessionAccuracy;
@@ -451,15 +583,19 @@ export function checkAndUnlockAchievements(): string[] {
 
   if (newlyUnlocked.length > 0) {
     const bonusXp = newlyUnlocked.reduce((sum, id) => {
-      const ach = ACHIEVEMENTS.find((a) => a.id === id);
-      return sum + (ach?.xpReward ?? 0);
+      const achievement = ACHIEVEMENTS.find((a) => a.id === id);
+      return sum + (achievement?.xpReward ?? 0);
     }, 0);
 
     currentState = {
       ...currentState,
-      unlockedAchievements: [...currentState.unlockedAchievements, ...newlyUnlocked],
+      unlockedAchievements: [
+        ...currentState.unlockedAchievements,
+        ...newlyUnlocked,
+      ],
       xp: currentState.xp + bonusXp,
     };
+
     save(currentState);
     notify();
   }
@@ -468,7 +604,7 @@ export function checkAndUnlockAchievements(): string[] {
 }
 
 /* ------------------------------------------------------------------ */
-/* Placement test
+/* Placement test                                                      */
 /* ------------------------------------------------------------------ */
 
 export function savePlacementResult(result: PlacementResult): void {
@@ -476,6 +612,7 @@ export function savePlacementResult(result: PlacementResult): void {
     ...currentState,
     placement: result,
   };
+
   save(currentState);
   notify();
 }
@@ -485,7 +622,7 @@ export function getPlacementResult(): PlacementResult | null {
 }
 
 /* ------------------------------------------------------------------ */
-/* Session accuracy tracking
+/* Session accuracy tracking                                           */
 /* ------------------------------------------------------------------ */
 
 export function recordSessionAccuracy(accuracy: number): void {
@@ -494,6 +631,7 @@ export function recordSessionAccuracy(accuracy: number): void {
       ...currentState,
       bestSessionAccuracy: Math.round(accuracy),
     };
+
     save(currentState);
     checkAndUnlockAchievements();
     notify();
@@ -505,13 +643,14 @@ export function recordDailyGoalCompleted(): void {
     ...currentState,
     dailyGoalsCompleted: currentState.dailyGoalsCompleted + 1,
   };
+
   save(currentState);
   checkAndUnlockAchievements();
   notify();
 }
 
 /* ------------------------------------------------------------------ */
-/* Strengths & weaknesses analysis
+/* Strengths & weaknesses analysis                                      */
 /* ------------------------------------------------------------------ */
 
 export type SkillAnalysis = {
@@ -525,23 +664,37 @@ export type SkillAnalysis = {
 export function getStrengthsAndWeaknesses(): SkillAnalysis[] {
   const state = currentState;
   const results: SkillAnalysis[] = [];
-  const categoryMap = new Map<string, { correct: number; total: number }>();
+  const categoryMap = new Map<
+    string,
+    { correct: number; total: number }
+  >();
 
   for (const [wordId, progress] of Object.entries(state.words)) {
     const word = getWordById(wordId);
     if (!word) continue;
-    const cat = word.category;
-    if (!categoryMap.has(cat)) categoryMap.set(cat, { correct: 0, total: 0 });
-    const entry = categoryMap.get(cat)!;
+
+    const category = word.category;
+
+    if (!categoryMap.has(category)) {
+      categoryMap.set(category, { correct: 0, total: 0 });
+    }
+
+    const entry = categoryMap.get(category)!;
     entry.total += progress.correctCount + progress.wrongCount;
     entry.correct += progress.correctCount;
   }
 
   for (const [categoryId, data] of categoryMap) {
-    const accuracy = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
+    const accuracy =
+      data.total > 0
+        ? Math.round((data.correct / data.total) * 100)
+        : 0;
+
     let strength: 'strong' | 'medium' | 'weak' = 'medium';
+
     if (accuracy >= 80) strength = 'strong';
     else if (accuracy < 50) strength = 'weak';
+
     results.push({
       categoryId,
       totalAnswers: data.total,
@@ -557,19 +710,20 @@ export function getStrengthsAndWeaknesses(): SkillAnalysis[] {
 
 export function getWeakWords(limit = 10): Word[] {
   const state = currentState;
+
   const weakIds = Object.entries(state.words)
-    .filter(([, p]) => p.wrongCount > 0)
+    .filter(([, progress]) => progress.wrongCount > 0)
     .sort((a, b) => b[1].wrongCount - a[1].wrongCount)
     .slice(0, limit)
     .map(([id]) => id);
 
   return weakIds
     .map((id) => getWordById(id))
-    .filter((w): w is Word => Boolean(w));
+    .filter((word): word is Word => Boolean(word));
 }
 
 /* ------------------------------------------------------------------ */
-/* Derived selectors (read-only, used by the Progress screen)
+/* Derived selectors (read-only, used by the Progress screen)           */
 /* ------------------------------------------------------------------ */
 
 export type ProgressSummary = {
@@ -587,13 +741,22 @@ export type ProgressSummary = {
   placement: PlacementResult | null;
 };
 
-const ARABIC_DAY_LABELS = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const ARABIC_DAY_LABELS = [
+  'الأحد',
+  'الإثنين',
+  'الثلاثاء',
+  'الأربعاء',
+  'الخميس',
+  'الجمعة',
+  'السبت',
+];
 
 function dateKey(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+
+  return `${year}-${month}-${day}`;
 }
 
 export function getProgressSummary(dailyGoal: number): ProgressSummary {
@@ -605,27 +768,38 @@ export function getProgressSummary(dailyGoal: number): ProgressSummary {
   let inProgressCount = 0;
 
   for (const id of learnedSet) {
-    const p = state.words[id];
-    if (p?.status === 'reviewed') masteredCount++;
+    const progress = state.words[id];
+
+    if (progress?.status === 'reviewed') masteredCount++;
     else inProgressCount++;
   }
 
   const allLevels = getAllLevels();
-  const perLevel = allLevels.map((lvl) => {
-    const levelWords = getWordsByLevel(lvl.code);
-    const learned = levelWords.filter((w: Word) => learnedSet.has(w.id)).length;
-    return { code: lvl.code, learned, total: levelWords.length };
+
+  const perLevel = allLevels.map((level) => {
+    const levelWords = getWordsByLevel(level.code);
+    const learned = levelWords.filter((word: Word) =>
+      learnedSet.has(word.id),
+    ).length;
+
+    return { code: level.code, learned, total: levelWords.length };
   });
 
-  // Last 7 days (oldest -> newest), labeled with Arabic weekday names.
-  const weeklyActivity: Array<{ date: string; label: string; count: number }> = [];
+  const weeklyActivity: Array<{
+    date: string;
+    label: string;
+    count: number;
+  }> = [];
+
   for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = dateKey(d);
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+
+    const key = dateKey(date);
+
     weeklyActivity.push({
       date: key,
-      label: ARABIC_DAY_LABELS[d.getDay()],
+      label: ARABIC_DAY_LABELS[date.getDay()],
       count: state.activityLog[key] ?? 0,
     });
   }
@@ -647,40 +821,37 @@ export function getProgressSummary(dailyGoal: number): ProgressSummary {
 }
 
 /* ------------------------------------------------------------------ */
-/* Cloud sync — export/import full progress state for cross-device sync
+/* Cloud sync — export/import full progress state for cross-device sync */
 /* ------------------------------------------------------------------ */
 
 export function exportProgress(): ProgressState {
-  return JSON.parse(JSON.stringify(currentState));
+  return JSON.parse(JSON.stringify(currentState)) as ProgressState;
 }
 
+/**
+ * Replace the current user's local progress with the cloud snapshot.
+ *
+ * Do not merge with the previous local state here: merging could leak
+ * progress between different accounts on the same browser.
+ */
 export function importProgress(external: Partial<ProgressState>): void {
   const incoming: ProgressState = {
     ...INITIAL_STATE,
     ...external,
     lessons: external.lessons ?? {},
     learnedWordIds: external.learnedWordIds ?? [],
+    streak: external.streak ?? 0,
+    lastActiveDate: external.lastActiveDate ?? null,
     words: external.words ?? {},
+    xp: external.xp ?? 0,
     activityLog: external.activityLog ?? {},
     unlockedAchievements: external.unlockedAchievements ?? [],
+    placement: external.placement ?? null,
+    bestSessionAccuracy: external.bestSessionAccuracy ?? 0,
+    dailyGoalsCompleted: external.dailyGoalsCompleted ?? 0,
   };
 
-  const merged: ProgressState = {
-    ...currentState,
-    ...incoming,
-    learnedWordIds: Array.from(new Set([...currentState.learnedWordIds, ...incoming.learnedWordIds])),
-    unlockedAchievements: Array.from(new Set([...currentState.unlockedAchievements, ...incoming.unlockedAchievements])),
-    xp: Math.max(currentState.xp, incoming.xp),
-    streak: Math.max(currentState.streak, incoming.streak),
-    bestSessionAccuracy: Math.max(currentState.bestSessionAccuracy, incoming.bestSessionAccuracy),
-    dailyGoalsCompleted: Math.max(currentState.dailyGoalsCompleted, incoming.dailyGoalsCompleted),
-    words: { ...currentState.words, ...incoming.words },
-    lessons: { ...currentState.lessons, ...incoming.lessons },
-    activityLog: { ...currentState.activityLog, ...incoming.activityLog },
-  };
-
-  currentState = merged;
+  currentState = incoming;
   save(currentState);
   notify();
 }
-

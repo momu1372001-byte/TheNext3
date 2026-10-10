@@ -13,7 +13,7 @@ import { useSettings } from '@/useSettings';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import AuthScreen from '@/screens/AuthScreen';
 import { supabase } from '@/lib/supabaseClient';
-
+import { testSupabaseConnection } from '@/lib/testSupabaseConnection';
 function AppInner() {
   const { user, profile: authProfile, loading } = useAuth();
   const [profile, setProfile] = useState<OnboardingState>(() => loadProfile());
@@ -21,7 +21,9 @@ function AppInner() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   useSettings();
-
+useEffect(() => {
+  void testSupabaseConnection();
+}, []);
   // Re-render on progress store changes (streak/XP updates, etc.)
   const [, setTick] = useState(0);
   useEffect(() => subscribe(() => setTick((t) => t + 1)), []);
