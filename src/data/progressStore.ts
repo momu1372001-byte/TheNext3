@@ -1,4 +1,3 @@
-
 import type { LevelCode, Word } from '@/types';
 import { getWordsByLevel, getAllLevels, getWordById } from '@/data/vocabularyRepository';
 import { ACHIEVEMENTS } from '@/data/achievements';
@@ -22,6 +21,13 @@ function getSessionStorageKey(): string {
   return activeUserId
     ? `${LEGACY_SESSION_KEY}:${activeUserId}`
     : `${LEGACY_SESSION_KEY}:guest`;
+}
+
+/**
+ * Per-account marker indicating local progress still needs cloud sync.
+ */
+function getPendingSyncKey(): string {
+  return `${getStorageKey()}:pending-sync`;
 }
 
 export type WordStatus = 'new' | 'learning' | 'reviewed';
@@ -106,11 +112,58 @@ function load(): ProgressState {
   }
 }
 
-function save(state: ProgressState): void {
+/**
+ * Persist progress locally before attempting cloud synchronization.
+ *
+ * Normal local mutations mark the account as needing synchronization.
+ * Cloud imports call save(state, false), because downloading cloud data
+ * is not itself a new local mutation.
+ */
+function save(state: ProgressState, markPendingSync = true): void {
   try {
     localStorage.setItem(getStorageKey(), JSON.stringify(state));
+
+    if (markPendingSync) {
+      localStorage.setItem(getPendingSyncKey(), 'true');
+    }
   } catch (error) {
     console.error('Failed to save local progress:', error);
+  }
+}
+
+/**
+ * Check whether the active account has progress waiting to be synchronized.
+ *
+ * If the storage flag cannot be read, conservatively return true to avoid
+ * overwriting potentially unsynchronized local progress with cloud data.
+ */
+export function hasPendingProgressSync(): boolean {
+  try {
+    return localStorage.getItem(getPendingSyncKey()) === 'true';
+  } catch (error) {
+    console.error('Failed to read pending progress sync flag:', error);
+    return true;
+  }
+}
+
+/**
+ * Clear the pending-sync marker only if the current local snapshot still
+ * matches the snapshot confirmed as uploaded.
+ *
+ * If the user changed progress while the upload was in flight, the marker
+ * remains so the newer snapshot can be uploaded afterward.
+ */
+export function markProgressSyncComplete(syncedJson: string): boolean {
+  try {
+    if (JSON.stringify(currentState) !== syncedJson) {
+      return false;
+    }
+
+    localStorage.removeItem(getPendingSyncKey());
+    return true;
+  } catch (error) {
+    console.error('Failed to clear pending progress sync flag:', error);
+    return false;
   }
 }
 
@@ -304,7 +357,7 @@ export function getReviewWords(): ReviewEntry[] {
 }
 
 /* ------------------------------------------------------------------ */
-/* Daily session — generates a mixed set of new + due review words     */
+/* Daily session — generates a mixed set of new + due review words    */
 /* based on the user's level and daily goal.                           */
 /* ------------------------------------------------------------------ */
 
@@ -650,7 +703,7 @@ export function recordDailyGoalCompleted(): void {
 }
 
 /* ------------------------------------------------------------------ */
-/* Strengths & weaknesses analysis                                      */
+/* Strengths & weaknesses analysis                                     */
 /* ------------------------------------------------------------------ */
 
 export type SkillAnalysis = {
@@ -723,7 +776,7 @@ export function getWeakWords(limit = 10): Word[] {
 }
 
 /* ------------------------------------------------------------------ */
-/* Derived selectors (read-only, used by the Progress screen)           */
+/* Derived selectors (read-only, used by the Progress screen)          */
 /* ------------------------------------------------------------------ */
 
 export type ProgressSummary = {
@@ -852,6 +905,9 @@ export function importProgress(external: Partial<ProgressState>): void {
   };
 
   currentState = incoming;
-  save(currentState);
+
+  // Cloud-to-local restore must not create a new pending-sync marker.
+  // Any existing pending marker is intentionally preserved.
+  save(currentState, false);
   notify();
 }

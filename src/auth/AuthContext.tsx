@@ -11,11 +11,14 @@ import {
 
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
+
 import {
   exportProgress,
   importProgress,
   setProgressUser,
   subscribe,
+  hasPendingProgressSync,
+  markProgressSyncComplete,
 } from '@/data/progressStore';
 
 export type UserProfile = {
@@ -80,24 +83,28 @@ export function AuthProvider({
     () => localStorage.getItem(GUEST_KEY) === 'true',
   );
 
-  // Only sync after this user's cloud profile has been loaded.
+  // لا نسمح بالمزامنة قبل تحميل بيانات الحساب المطابق.
   const [readyUserId, setReadyUserId] = useState<string | null>(null);
 
   const activeUserIdRef = useRef<string | null>(null);
+
   const syncTimerRef =
     useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const lastSyncedRef = useRef<string>('');
 
   const clearSyncTimer = useCallback(() => {
-    if (syncTimerRef.current) {
+    if (syncTimerRef.current !== null) {
       clearTimeout(syncTimerRef.current);
       syncTimerRef.current = null;
     }
   }, []);
 
   /**
-   * Loads the profile belonging to one specific authenticated user.
-   * A missing profile is created before synchronization is enabled.
+   * تحميل الملف الشخصي الخاص بالمستخدم الحالي.
+   *
+   * إذا كان هناك تقدم محلي لم تتم مزامنته، نحافظ عليه
+   * ولا نستبدله بنسخة سحابية قديمة.
    */
   const fetchProfile = useCallback(
     async (uid: string, email = ''): Promise<ProfileRow | null> => {
@@ -113,7 +120,7 @@ export function AuthProvider({
           return null;
         }
 
-        // Ignore a response that belongs to an account no longer active.
+        // تجاهل أي استجابة تخص حسابًا لم يعد نشطًا.
         if (activeUserIdRef.current !== uid) {
           return null;
         }
@@ -121,7 +128,7 @@ export function AuthProvider({
         let row = data as ProfileRow | null;
 
         if (!row) {
-          // This snapshot comes from the local store for this user only.
+          // هذا التقدم مأخوذ من المخزن المحلي لهذا الحساب فقط.
           const localProgress = exportProgress();
 
           const { data: created, error: createError } = await supabase
@@ -158,6 +165,11 @@ export function AuthProvider({
           row = created as ProfileRow;
         }
 
+        // التأكد مرة أخرى من الحساب قبل التعامل مع التقدم.
+        if (activeUserIdRef.current !== uid) {
+          return null;
+        }
+
         setProfile({
           id: row.id,
           email: row.email ?? email,
@@ -170,27 +182,44 @@ export function AuthProvider({
 
         const cloudProgress = row.progress_data;
 
-        if (
+        const hasValidCloudProgress =
           cloudProgress !== null &&
           typeof cloudProgress === 'object' &&
-          !Array.isArray(cloudProgress)
-        ) {
-          // Replace, don't merge: progress must not leak between accounts.
-          importProgress(cloudProgress as Parameters<typeof importProgress>[0]);
+          !Array.isArray(cloudProgress);
+
+        // نعيد فحص علامة التقدم غير المتزامن بعد اكتمال طلب الشبكة.
+        // قد يكون المستخدم قد تعلم كلمات أثناء انتظار الاستجابة.
+        const hasLocalPendingChanges = hasPendingProgressSync();
+
+        if (hasValidCloudProgress && hasLocalPendingChanges) {
+          /*
+           * توجد تغييرات محلية لم تصل إلى الخادم.
+           * لا نستورد النسخة السحابية فوقها.
+           * نحتفظ بالنسخة المحلية ونترك المزامنة ترفعها.
+           */
+          lastSyncedRef.current = JSON.stringify(cloudProgress);
+        } else if (hasValidCloudProgress) {
+          /*
+           * لا توجد تغييرات محلية معلقة.
+           * من الآمن استعادة تقدم الحساب من السحابة.
+           */
+          importProgress(
+            cloudProgress as Parameters<typeof importProgress>[0],
+          );
 
           lastSyncedRef.current = JSON.stringify(exportProgress());
         } else {
-          // No cloud snapshot exists yet. Allow the current user's
-          // isolated local progress to be uploaded by the sync effect.
+          // لا توجد نسخة سحابية صالحة حتى الآن.
+          // ستتم محاولة رفع التقدم المحلي عند تفعيل المزامنة.
           lastSyncedRef.current = '';
         }
 
-        // Recheck after loading/importing, before enabling sync.
         if (activeUserIdRef.current !== uid) {
           return null;
         }
 
         setReadyUserId(uid);
+
         return row;
       } catch (error) {
         console.error('Profile loading error:', error);
@@ -218,6 +247,7 @@ export function AuthProvider({
         const initialUserId = initialSession?.user.id ?? null;
 
         activeUserIdRef.current = initialUserId;
+
         setProgressUser(initialUserId);
         setReadyUserId(null);
         lastSyncedRef.current = '';
@@ -226,7 +256,12 @@ export function AuthProvider({
 
         if (initialSession?.user) {
           setIsGuest(false);
-          localStorage.removeItem(GUEST_KEY);
+
+          try {
+            localStorage.removeItem(GUEST_KEY);
+          } catch (storageError) {
+            console.error('Guest storage cleanup error:', storageError);
+          }
 
           await fetchProfile(
             initialSession.user.id,
@@ -250,12 +285,15 @@ export function AuthProvider({
       (_event, newSession) => {
         const newUserId = newSession?.user.id ?? null;
 
-        // Switch local storage before loading the new account's profile.
+        // تغيير مخزن التقدم عند تغيير الحساب، دون دمج بيانات الحسابات.
         if (activeUserIdRef.current !== newUserId) {
           activeUserIdRef.current = newUserId;
+
           setProgressUser(newUserId);
           setReadyUserId(null);
+
           lastSyncedRef.current = '';
+
           clearSyncTimer();
           setProfile(null);
         }
@@ -264,15 +302,20 @@ export function AuthProvider({
 
         if (newSession?.user) {
           setIsGuest(false);
-          localStorage.removeItem(GUEST_KEY);
 
-          // Keep network requests outside the auth callback.
+          try {
+            localStorage.removeItem(GUEST_KEY);
+          } catch (storageError) {
+            console.error('Guest storage cleanup error:', storageError);
+          }
+
+          // تنفيذ طلب الشبكة خارج callback المصادقة.
+          const userId = newSession.user.id;
+          const userEmail = newSession.user.email ?? '';
+
           setTimeout(() => {
-            if (activeUserIdRef.current === newSession.user.id) {
-              void fetchProfile(
-                newSession.user.id,
-                newSession.user.email ?? '',
-              );
+            if (activeUserIdRef.current === userId) {
+              void fetchProfile(userId, userEmail);
             }
           }, 0);
         } else {
@@ -290,6 +333,36 @@ export function AuthProvider({
       clearSyncTimer();
     };
   }, [fetchProfile, clearSyncTimer]);
+
+  /**
+   * إعادة محاولة تحميل الملف الشخصي عند رجوع الإنترنت،
+   * خصوصًا إذا فشل التحميل الأول بسبب انقطاع الاتصال.
+   */
+  useEffect(() => {
+    const currentUser = session?.user;
+
+    if (!currentUser) return;
+
+    const retryProfileLoad = () => {
+      if (activeUserIdRef.current !== currentUser.id) {
+        return;
+      }
+
+      // إذا لم يكتمل تحميل الملف الشخصي، نحاول من جديد.
+      if (readyUserId !== currentUser.id) {
+        void fetchProfile(
+          currentUser.id,
+          currentUser.email ?? '',
+        );
+      }
+    };
+
+    window.addEventListener('online', retryProfileLoad);
+
+    return () => {
+      window.removeEventListener('online', retryProfileLoad);
+    };
+  }, [session, readyUserId, fetchProfile]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -322,15 +395,17 @@ export function AuthProvider({
         };
       }
 
-      // With email confirmation enabled, there may be no session yet.
-      // The authenticated-session flow will create/load the profile later.
+      // قد لا توجد جلسة بعد إنشاء الحساب إذا كان تأكيد البريد مطلوبًا.
       if (data.session) {
         const userId = data.user.id;
 
         activeUserIdRef.current = userId;
+
         setProgressUser(userId);
         setReadyUserId(null);
+
         lastSyncedRef.current = '';
+
         clearSyncTimer();
 
         const localProgress = exportProgress();
@@ -393,11 +468,16 @@ export function AuthProvider({
       return;
     }
 
-    // The auth listener switches the store to the guest account.
+    // مستمع المصادقة سيحوّل مخزن التقدم إلى مخزن الضيف.
     setProfile(null);
     setReadyUserId(null);
     setIsGuest(false);
-    localStorage.removeItem(GUEST_KEY);
+
+    try {
+      localStorage.removeItem(GUEST_KEY);
+    } catch (storageError) {
+      console.error('Guest storage cleanup error:', storageError);
+    }
   }, [clearSyncTimer]);
 
   const refreshProfile = useCallback(async () => {
@@ -411,19 +491,30 @@ export function AuthProvider({
     }
   }, [session, fetchProfile]);
 
+  /**
+   * مزامنة التقدم مع الخادم.
+   *
+   * - حفظ محلي فوري يجري داخل progressStore.
+   * - تأخير قصير لتجميع التغييرات المتتابعة.
+   * - لا نمسح علامة التقدم المعلق إلا بعد نجاح الحفظ.
+   * - عند عودة الاتصال، نحاول إرسال التقدم مرة أخرى.
+   */
   useEffect(() => {
     const userId = session?.user.id;
 
-    // Do not sync until the matching account has finished loading.
+    // لا تزامن قبل تحميل ملف الحساب المطابق.
     if (!userId || readyUserId !== userId) {
       return;
     }
+
+    let disposed = false;
 
     const pushToServer = () => {
       clearSyncTimer();
 
       syncTimerRef.current = setTimeout(async () => {
         if (
+          disposed ||
           activeUserIdRef.current !== userId ||
           readyUserId !== userId
         ) {
@@ -433,7 +524,13 @@ export function AuthProvider({
         const progress = exportProgress();
         const progressJson = JSON.stringify(progress);
 
-        if (progressJson === lastSyncedRef.current) {
+        const pending = hasPendingProgressSync();
+
+        // لا حاجة لرفع نسخة مطابقة إذا لم توجد تغييرات معلقة.
+        if (
+          progressJson === lastSyncedRef.current &&
+          !pending
+        ) {
           return;
         }
 
@@ -448,12 +545,20 @@ export function AuthProvider({
           .eq('id', userId)
           .select('id');
 
+        // تجاهل نتيجة أي طلب انتهى بعد تغيير الحساب أو إلغاء الأثر.
+        if (
+          disposed ||
+          activeUserIdRef.current !== userId
+        ) {
+          return;
+        }
+
         if (error) {
+          // لا نمسح التغييرات المعلقة عند فشل الشبكة.
           console.error('Progress sync error:', error.message);
           return;
         }
 
-        // An update affecting zero rows is not a successful sync.
         if (!data || data.length === 0) {
           console.error(
             'Progress sync failed: no matching profile row was updated.',
@@ -461,19 +566,56 @@ export function AuthProvider({
           return;
         }
 
+        /*
+         * تُمسح علامة الانتظار فقط إذا كانت الحالة الحالية
+         * ما زالت مطابقة للنسخة التي نجح رفعها.
+         */
+        markProgressSyncComplete(progressJson);
+
         lastSyncedRef.current = progressJson;
+
+        // ربما تغير التقدم أثناء انتظار استجابة الخادم.
+        const latestJson = JSON.stringify(exportProgress());
+
+        if (
+          latestJson !== progressJson ||
+          hasPendingProgressSync()
+        ) {
+          pushToServer();
+        }
       }, 3000);
     };
 
     const unsubscribe = subscribe(pushToServer);
 
-    // If the cloud had no snapshot, upload this account's local state.
-    if (lastSyncedRef.current === '') {
+    const retrySync = () => {
+      if (
+        activeUserIdRef.current === userId &&
+        readyUserId === userId
+      ) {
+        pushToServer();
+      }
+    };
+
+    window.addEventListener('online', retrySync);
+    window.addEventListener('focus', retrySync);
+
+    // رفع أي تغييرات معلقة أو حالة لم تُرفع بعد.
+    if (
+      hasPendingProgressSync() ||
+      lastSyncedRef.current === ''
+    ) {
       pushToServer();
     }
 
     return () => {
+      disposed = true;
+
       unsubscribe();
+
+      window.removeEventListener('online', retrySync);
+      window.removeEventListener('focus', retrySync);
+
       clearSyncTimer();
     };
   }, [session, readyUserId, clearSyncTimer]);
