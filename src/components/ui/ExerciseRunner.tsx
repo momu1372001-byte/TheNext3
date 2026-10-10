@@ -2,7 +2,8 @@ import { useState, useCallback } from 'react';
 import { ChevronLeft, Check, X, Volume2, Star, Trophy, RotateCcw } from 'lucide-react';
 import { Screen, ProgressBar, Button } from '@/components/ui';
 import { getAllWords } from '@/data/vocabularyRepository';
-import { recordWordAnswer } from '@/data/progressStore';
+import { recordWordAnswer, recordWordReviewRating } from '@/data/progressStore';
+import type { ReviewRating } from '@/data/reviewScheduler';
 import type { Word } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -46,6 +47,8 @@ type ExerciseRunnerProps = {
   restartLabel?: string;
   backLabel?: string;
   onRestart?: () => void;
+  /** Enable spaced-repetition ratings for the smart review flow. */
+  reviewMode?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -163,6 +166,7 @@ export function ExerciseRunner({
   restartLabel = 'تمرين آخر',
   backLabel = 'العودة',
   onRestart,
+  reviewMode = false,
 }: ExerciseRunnerProps) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -170,9 +174,15 @@ export function ExerciseRunner({
   const [correctCount, setCorrectCount] = useState(0);
   const [wrongWords, setWrongWords] = useState<Word[]>([]);
   const [phase, setPhase] = useState<'practice' | 'done'>('practice');
+  const [reviewRating, setReviewRating] = useState<ReviewRating | null>(null);
 
   const current = exercises[currentIdx];
-
+const isLastReviewQuestionForWord =
+  reviewMode &&
+  Boolean(current) &&
+  !exercises
+    .slice(currentIdx + 1)
+    .some((exercise) => exercise.word.id === current.word.id);
   const handleAnswer = useCallback(
     (option: string) => {
       if (answered || !current) return;
@@ -184,10 +194,14 @@ export function ExerciseRunner({
       } else {
         setWrongWords((w) => [...w, current.word]);
       }
-      recordWordAnswer(current.word.id, correct);
+      // In smart-review mode, the user's spaced-repetition rating is recorded
+      // separately below. Avoid recording the same answer twice.
+      if (!reviewMode) {
+        recordWordAnswer(current.word.id, correct);
+      }
       onAnswer?.(current.word, correct);
     },
-    [answered, current, onAnswer],
+    [answered, current, onAnswer, reviewMode],
   );
 
   const handleContinue = useCallback(() => {
@@ -202,6 +216,7 @@ export function ExerciseRunner({
       setCurrentIdx((i) => i + 1);
       setSelected(null);
       setAnswered(false);
+      setReviewRating(null);
     }
   }, [currentIdx, exercises.length, correctCount, wrongWords, onComplete, hideDoneScreen]);
 
@@ -214,6 +229,7 @@ export function ExerciseRunner({
     setAnswered(false);
     setCorrectCount(0);
     setWrongWords([]);
+    setReviewRating(null);
     setPhase('practice');
   }, [onRestart]);
 
@@ -461,7 +477,44 @@ export function ExerciseRunner({
               </div>
             </div>
 
-            <Button fullWidth size="lg" onClick={handleContinue}>
+            {reviewMode &&isLastReviewQuestionForWord &&  (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-semibold text-text-primary text-center">
+                  ما مدى سهولة تذكّر الكلمة؟
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      ['again', 'مرة أخرى'],
+                      ['hard', 'صعبة'],
+                      ['good', 'جيدة'],
+                      ['easy', 'سهلة'],
+                    ] as const
+                  ).map(([rating, label]) => (
+                    <Button
+                      key={rating}
+                      fullWidth
+                      variant="ghost"
+                      disabled={reviewRating !== null}
+                      onClick={() => {
+                        if (reviewRating !== null) return;
+                        recordWordReviewRating(current.word.id, rating);
+                        setReviewRating(rating);
+                      }}
+                    >
+                      {reviewRating === rating ? `✓ ${label}` : label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Button
+              fullWidth
+              size="lg"
+              onClick={handleContinue}
+              disabled={reviewMode && isLastReviewQuestionForWord && reviewRating === null}
+            >
               {isLast ? 'إنهاء وعرض النتيجة' : 'متابعة'}
             </Button>
           </div>

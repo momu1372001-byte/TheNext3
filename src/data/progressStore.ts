@@ -1,7 +1,13 @@
 import type { LevelCode, Word } from '@/types';
 import { getWordsByLevel, getAllLevels, getWordById } from '@/data/vocabularyRepository';
 import { ACHIEVEMENTS } from '@/data/achievements';
-
+import {
+  normalizeReviewSchedule,
+  scheduleReview,
+  selectDueReviews,
+  type ReviewRating,
+  type ReviewSchedule,
+} from '@/data/reviewScheduler';
 const LEGACY_STORAGE_KEY = 'words-app-progress-v1';
 const LEGACY_SESSION_KEY = 'words-app-session-v1';
 
@@ -38,12 +44,10 @@ export type LessonProgress = {
   completedAt: string | null;
 };
 
-export type WordProgress = {
-  status: WordStatus;
-  correctCount: number;
-  wrongCount: number;
-};
 
+export type WordProgress = ReviewSchedule & {
+  status: WordStatus;
+};
 /** Map of YYYY-MM-DD -> count of words learned that day. */
 export type ActivityLog = Record<string, number>;
 
@@ -249,17 +253,35 @@ function bumpActivity(
   return { ...state.activityLog, [today]: prev + newlyLearned };
 }
 
-export function recordWordAnswer(wordId: string, correct: boolean): void {
+
+export function recordWordAnswer(
+  wordId: string,
+  correct: boolean,
+): void {
   const existing = currentState.words[wordId];
-  const correctCount = (existing?.correctCount ?? 0) + (correct ? 1 : 0);
-  const wrongCount = (existing?.wrongCount ?? 0) + (correct ? 0 : 1);
-  const status: WordStatus = correctCount >= 2 ? 'reviewed' : 'learning';
+
+  const correctCount =
+    (existing?.correctCount ?? 0) + (correct ? 1 : 0);
+
+  const wrongCount =
+    (existing?.wrongCount ?? 0) + (correct ? 0 : 1);
+
+  const status: WordStatus =
+    correctCount >= 2 ? 'reviewed' : 'learning';
+
+  // Preserve existing scheduling data while updating answer counters.
+  const schedule = normalizeReviewSchedule(existing);
 
   currentState = {
     ...currentState,
     words: {
       ...currentState.words,
-      [wordId]: { status, correctCount, wrongCount },
+      [wordId]: {
+        ...schedule,
+        status,
+        correctCount,
+        wrongCount,
+      },
     },
     xp: currentState.xp + (correct ? 5 : 1),
   };
@@ -267,6 +289,55 @@ export function recordWordAnswer(wordId: string, correct: boolean): void {
   save(currentState);
   notify();
 }
+
+/**
+ * Records an explicit spaced-repetition rating.
+ * Existing progress counters and XP rules remain unchanged.
+ */
+export function recordWordReviewRating(
+  wordId: string,
+  rating: ReviewRating,
+): void {
+  const existing = currentState.words[wordId];
+  const previousSchedule = normalizeReviewSchedule(existing);
+  const now = new Date();
+
+  const schedule = scheduleReview(
+    previousSchedule,
+    rating,
+    now,
+  );
+
+  const correct =
+    rating !== 'again';
+
+  const correctCount =
+    (existing?.correctCount ?? 0) + (correct ? 1 : 0);
+
+  const wrongCount =
+    (existing?.wrongCount ?? 0) + (correct ? 0 : 1);
+
+  const status: WordStatus =
+    correctCount >= 2 ? 'reviewed' : 'learning';
+
+  currentState = {
+    ...currentState,
+    words: {
+      ...currentState.words,
+      [wordId]: {
+        ...schedule,
+        status,
+        correctCount,
+        wrongCount,
+      },
+    },
+    xp: currentState.xp + (correct ? 5 : 1),
+  };
+
+  save(currentState);
+  notify();
+}
+
 
 export function markLessonComplete(
   lessonId: string,
@@ -323,37 +394,46 @@ export type ReviewEntry = {
  * - Words still in "learning" status are next
  * - "reviewed" words with zero wrongs are excluded (they're mastered)
  */
+
 export function getReviewWords(): ReviewEntry[] {
-  const entries: ReviewEntry[] = [];
-
-  for (const [wordId, progress] of Object.entries(currentState.words)) {
-    const hasWrong = progress.wrongCount > 0;
-    const isLearning = progress.status === 'learning';
-
-    if (!hasWrong && !isLearning) continue;
-
-    const weight = Math.max(
-      1,
-      (progress.wrongCount + 1) * (isLearning ? 2 : 1),
-    );
-
-    entries.push({
+  const candidates = Object.entries(currentState.words)
+    .map(([wordId, progress]) => ({
       wordId,
-      wrongCount: progress.wrongCount,
-      correctCount: progress.correctCount,
+      ...normalizeReviewSchedule(progress),
       status: progress.status,
-      weight,
+    }));
+
+  const dueReviews = selectDueReviews(
+    candidates,
+    new Date(),
+  );
+
+  return dueReviews
+    .filter((review) => {
+      const progress = currentState.words[review.wordId];
+
+      if (!progress) return false;
+
+      return (
+        progress.wrongCount > 0 ||
+        progress.status === 'learning'
+      );
+    })
+    .map((review) => {
+      const progress = currentState.words[review.wordId];
+
+      return {
+        wordId: review.wordId,
+        wrongCount: progress.wrongCount,
+        correctCount: progress.correctCount,
+        status: progress.status,
+        weight: Math.max(
+          1,
+          (progress.wrongCount + 1) *
+            (progress.status === 'learning' ? 2 : 1),
+        ),
+      };
     });
-  }
-
-  entries.sort((a, b) => {
-    if (b.wrongCount !== a.wrongCount) return b.wrongCount - a.wrongCount;
-    if (a.status === 'learning' && b.status !== 'learning') return -1;
-    if (b.status === 'learning' && a.status !== 'learning') return 1;
-    return 0;
-  });
-
-  return entries;
 }
 
 /* ------------------------------------------------------------------ */
