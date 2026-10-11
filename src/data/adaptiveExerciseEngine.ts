@@ -1,6 +1,7 @@
 import type { Word } from '@/types';
 import { getAllWords } from '@/data/vocabularyRepository';
 import { getProgress } from '@/data/progressStore';
+import { hasEmojiForWord, getEmojiForWord } from '@/data/wordEmoji';
 
 export type AdaptiveExerciseType =
   | 'en-to-ar'
@@ -13,7 +14,13 @@ export type AdaptiveExerciseType =
   | 'sentence-completion'
   | 'spelling'
   | 'context-selection'
-  | 'mixed-review';
+  | 'mixed-review'
+  | 'sentence-assembly'
+  | 'matching-pairs'
+  | 'listening'
+  | 'picture-selection'
+  | 'speaking'
+  | 'word-translation';
 
 export type AdaptiveExercise = {
   id: string;
@@ -24,7 +31,17 @@ export type AdaptiveExercise = {
   options: string[];
   correctAnswer: string;
   isArabicOptions: boolean;
-  answerMode?: 'choice' | 'text';
+  answerMode?: 'choice' | 'text' | 'tiles' | 'matching' | 'speaking';
+  /** For matching-pairs: the right-column items paired with options by index. */
+  matchPairs?: string[];
+  /** For sentence-assembly: the correct word order as space-separated tokens. */
+  correctSentence?: string;
+  /** For picture-selection: emoji strings parallel to options. */
+  emojis?: string[];
+  /** For word-translation: word-level token data. */
+  tokens?: Array<{ text: string; translation: string }>;
+  /** Additional words for multi-word exercises (e.g. matching pairs). */
+  relatedWords?: Word[];
 };
 
 export type AdaptiveExerciseOptions = {
@@ -38,6 +55,11 @@ export type AdaptiveExerciseOptions = {
 const ALL_TYPES: AdaptiveExerciseType[] = [
   'recognition', 'recall', 'translation', 'definition-match',
   'sentence-completion', 'spelling', 'context-selection', 'mixed-review',
+  'listening', 'speaking', 'word-translation',
+];
+
+const CONDITIONAL_TYPES: AdaptiveExerciseType[] = [
+  'sentence-assembly', 'picture-selection', 'matching-pairs',
 ];
 
 const normalize = (value: string): string => value.trim().toLocaleLowerCase().replace(/[.!?,;:،؛؟]/g, '').replace(/\s+/g, ' ');
@@ -80,8 +102,6 @@ function getDistractors(
   if (cached) return cached;
 
   const { allWords } = context;
-  // The result is cached per target word/field so multiple exercise types for
-  // the same word do not repeatedly scan the entire vocabulary.
   const sameCategoryAndLevel: string[] = [];
   const sameLevel: string[] = [];
   const fallback: string[] = [];
@@ -111,6 +131,14 @@ function buildOptions(word: Word, correct: string, field: 'word' | 'arabicTransl
   return shuffle([correct, ...getDistractors(word, correct, field, context)]);
 }
 
+function getRelatedWords(word: Word, count: number, context: ExerciseBuildContext): Word[] {
+  const { allWords } = context;
+  const sameLevel = allWords.filter(
+    (w) => w.id !== word.id && w.cefrLevel === word.cefrLevel,
+  );
+  return shuffle(sameLevel).slice(0, count);
+}
+
 function getTypeHistory(wordId: string, type: AdaptiveExerciseType, progress: ExerciseBuildContext['progress']): { attempts: number; wrong: number } {
   const stats = progress.exercisePerformance?.[wordId];
   const item = stats?.byType?.[type];
@@ -127,9 +155,8 @@ function chooseTypes(word: Word, count: number, adaptive: boolean, progress: Exe
     const stats = getTypeHistory(word.id, type, progress);
     let score = (stats.wrong * 8) - (stats.attempts * 0.15);
     if (!adaptive) score = 0;
-    if (mastered) score += ['recognition', 'translation', 'mixed-review'].includes(type) ? 4 : -2;
-    if (weak && ['recall', 'spelling', 'sentence-completion', 'context-selection'].includes(type)) score += 3;
-    // Spread first-time practice across types without making generation random-only.
+    if (mastered) score += ['recognition', 'translation', 'mixed-review', 'listening'].includes(type) ? 4 : -2;
+    if (weak && ['recall', 'spelling', 'sentence-completion', 'context-selection', 'speaking'].includes(type)) score += 3;
     score += ((word.order + index * 3) % 7) / 100;
     return { type, score, index };
   });
@@ -137,13 +164,151 @@ function chooseTypes(word: Word, count: number, adaptive: boolean, progress: Exe
   const selected: AdaptiveExerciseType[] = [];
   for (let i = 0; i < count; i++) {
     if (i === 1 && weak) {
-      const varied = scored.find((entry) => !selected.includes(entry.type) && ['recall', 'spelling', 'sentence-completion', 'context-selection'].includes(entry.type));
+      const varied = scored.find((entry) => !selected.includes(entry.type) && ['recall', 'spelling', 'sentence-completion', 'context-selection', 'speaking'].includes(entry.type));
       if (varied) { selected.push(varied.type); continue; }
     }
     const next = scored.find((entry) => !selected.includes(entry.type));
     if (next) selected.push(next.type);
   }
   return selected;
+}
+
+/** Build a sentence-assembly exercise from the word's example sentence. */
+function buildSentenceAssembly(word: Word, context: ExerciseBuildContext, index: number): AdaptiveExercise | null {
+  const sentence = word.exampleSentence?.trim();
+  if (!sentence || sentence.split(/\s+/).length < 3 || sentence.split(/\s+/).length > 10) return null;
+
+  const tokens = sentence.split(/\s+/);
+  const distractorWords = getDistractors(word, word.word, 'word', context).slice(0, 2);
+  const allTiles = shuffle([...tokens, ...distractorWords]);
+
+  return {
+    id: `${word.id}:sentence-assembly:${index}`,
+    type: 'sentence-assembly',
+    word,
+    prompt: word.arabicExampleTranslation || word.arabicTranslation,
+    promptSub: 'رتّب الكلمات لتكوين الجملة الصحيحة',
+    options: allTiles,
+    correctAnswer: sentence,
+    isArabicOptions: false,
+    answerMode: 'tiles',
+    correctSentence: sentence,
+  };
+}
+
+/** Build a matching-pairs exercise using the word and 3 related words. */
+function buildMatchingPairs(word: Word, context: ExerciseBuildContext, index: number): AdaptiveExercise | null {
+  const related = getRelatedWords(word, 3, context);
+  if (related.length < 3) return null;
+
+  const allWords = [word, ...related];
+  const englishCol = shuffle(allWords.map((w) => w.word));
+  const arabicCol = allWords.map((w) => w.arabicTranslation);
+  const matchPairs = englishCol.map((en) =>
+    allWords.find((w) => w.word === en)?.arabicTranslation ?? '',
+  );
+
+  return {
+    id: `${word.id}:matching-pairs:${index}`,
+    type: 'matching-pairs',
+    word,
+    prompt: 'طابق الكلمات الإنجليزية مع ترجمتها العربية',
+    promptSub: undefined,
+    options: englishCol,
+    correctAnswer: '',
+    isArabicOptions: true,
+    answerMode: 'matching',
+    matchPairs,
+    relatedWords: allWords,
+  };
+}
+
+/** Build a listening comprehension exercise. */
+function buildListening(word: Word, _context: ExerciseBuildContext, index: number): AdaptiveExercise | null {
+  return {
+    id: `${word.id}:listening:${index}`,
+    type: 'listening',
+    word,
+    prompt: 'استمع واختر الكلمة الصحيحة',
+    promptSub: word.arabicTranslation,
+    options: [],
+    correctAnswer: word.word,
+    isArabicOptions: false,
+    answerMode: 'choice',
+  };
+}
+
+/** Build a picture-selection exercise if emoji is available. */
+function buildPictureSelection(word: Word, context: ExerciseBuildContext, index: number): AdaptiveExercise | null {
+  if (!hasEmojiForWord(word.word)) return null;
+
+  const related = getRelatedWords(word, 3, context).filter((w) => hasEmojiForWord(w.word));
+  if (related.length < 3) return null;
+
+  const allWords = [word, ...related];
+  const emojis = allWords.map((w) => getEmojiForWord(w.word)!);
+  const shuffled = shuffle(allWords.map((w, i) => ({ word: w.word, emoji: emojis[i] })));
+  const shuffledWords = shuffled.map((s) => s.word);
+  const shuffledEmojis = shuffled.map((s) => s.emoji);
+
+  return {
+    id: `${word.id}:picture-selection:${index}`,
+    type: 'picture-selection',
+    word,
+    prompt: word.arabicTranslation,
+    promptSub: 'اختر الصورة الصحيحة',
+    options: shuffledEmojis,
+    correctAnswer: getEmojiForWord(word.word)!,
+    isArabicOptions: false,
+    answerMode: 'choice',
+    emojis: shuffledEmojis,
+  };
+}
+
+/** Build a speaking/pronunciation exercise. */
+function buildSpeaking(word: Word, _context: ExerciseBuildContext, index: number): AdaptiveExercise | null {
+  return {
+    id: `${word.id}:speaking:${index}`,
+    type: 'speaking',
+    word,
+    prompt: word.word,
+    promptSub: word.arabicTranslation,
+    options: [],
+    correctAnswer: word.word,
+    isArabicOptions: false,
+    answerMode: 'speaking',
+  };
+}
+
+/** Build a word-by-word sentence translation exercise. */
+function buildWordTranslation(word: Word, context: ExerciseBuildContext, index: number): AdaptiveExercise | null {
+  const sentence = word.exampleSentence?.trim();
+  if (!sentence || sentence.split(/\s+/).length < 2) return null;
+
+  const tokens = sentence.split(/\s+/);
+  const tokenData = tokens.map((token) => {
+    const cleanToken = token.replace(/[.!?,;:]/g, '');
+    const matchWord = context.allWords.find(
+      (w) => w.word.toLowerCase() === cleanToken.toLowerCase(),
+    );
+    return {
+      text: token,
+      translation: matchWord?.arabicTranslation ?? '',
+    };
+  });
+
+  return {
+    id: `${word.id}:word-translation:${index}`,
+    type: 'word-translation',
+    word,
+    prompt: sentence,
+    promptSub: word.arabicExampleTranslation,
+    options: [],
+    correctAnswer: '',
+    isArabicOptions: false,
+    answerMode: 'choice',
+    tokens: tokenData,
+  };
 }
 
 function makeExercise(word: Word, type: AdaptiveExerciseType, context: ExerciseBuildContext, index: number): AdaptiveExercise | null {
@@ -175,14 +340,42 @@ function makeExercise(word: Word, type: AdaptiveExerciseType, context: ExerciseB
     }
     case 'spelling':
       return { ...base, type, prompt: word.arabicTranslation, promptSub: 'اكتب الكلمة الإنجليزية', options: [], correctAnswer: word.word, isArabicOptions: false, answerMode: 'text' };
+    case 'sentence-assembly':
+      return buildSentenceAssembly(word, context, index);
+    case 'matching-pairs':
+      return buildMatchingPairs(word, context, index);
+    case 'listening':
+      return buildListening(word, context, index);
+    case 'picture-selection':
+      return buildPictureSelection(word, context, index);
+    case 'speaking':
+      return buildSpeaking(word, context, index);
+    case 'word-translation':
+      return buildWordTranslation(word, context, index);
   }
+}
+
+/**
+ * Determine which conditional types are available for a word.
+ * These are injected as bonus exercises alongside the standard adaptive types.
+ */
+function availableConditionalTypes(word: Word, context: ExerciseBuildContext): AdaptiveExerciseType[] {
+  const available: AdaptiveExerciseType[] = [];
+  if (word.exampleSentence && word.exampleSentence.split(/\s+/).length >= 3 && word.exampleSentence.split(/\s+/).length <= 10) {
+    available.push('sentence-assembly');
+  }
+  if (hasEmojiForWord(word.word) && getRelatedWords(word, 3, context).filter((w) => hasEmojiForWord(w.word)).length >= 3) {
+    available.push('picture-selection');
+  }
+  if (getRelatedWords(word, 3, context).length >= 3) {
+    available.push('matching-pairs');
+  }
+  return available;
 }
 
 /** Generate adaptive exercises while preserving the shape expected by ExerciseRunner. */
 export function buildAdaptiveExercisesForWords(words: Word[], options: AdaptiveExerciseOptions = {}): AdaptiveExercise[] {
   if (!words.length) return [];
-  // Take one consistent snapshot per generation call. Keep distractor results
-  // cached during this call to avoid repeated full-catalog scans on entry.
   const context: ExerciseBuildContext = {
     allWords: getAllWords(),
     progress: getProgress(),
@@ -196,15 +389,20 @@ export function buildAdaptiveExercisesForWords(words: Word[], options: AdaptiveE
   words.forEach((word, wordIndex) => {
     const progress = context.progress;
     const weak = (progress.words[word.id]?.wrongCount ?? 0) >= 2 || (progress.exercisePerformance?.[word.id]?.wrong ?? 0) >= 2;
-    const defaultCount = Math.max(1, Math.min(options.exercisesPerWord ?? (weak ? 3 : 2), ALL_TYPES.length));
+    const defaultCount = Math.max(1, Math.min(options.exercisesPerWord ?? (weak ? 3 : 2), ALL_TYPES.length + CONDITIONAL_TYPES.length));
     const preferredTypes = chooseTypes(word, ALL_TYPES.length, adaptive, progress);
     const candidateTypes = [...chooseTypes(word, defaultCount, adaptive, progress), ...preferredTypes];
+
+    // Inject conditional types as bonus candidates — they add variety without
+    // displacing the core adaptive selection.
+    const conditional = availableConditionalTypes(word, context);
+    const fullCandidates = [...candidateTypes, ...conditional];
+
     let addedForWord = 0;
-    for (let typeIndex = 0; typeIndex < candidateTypes.length && addedForWord < defaultCount; typeIndex++) {
-      const type = candidateTypes[typeIndex];
+    for (let typeIndex = 0; typeIndex < fullCandidates.length && addedForWord < defaultCount; typeIndex++) {
+      const type = fullCandidates[typeIndex];
       if (seenPerWord.has(`${word.id}:${type}`)) continue;
       const exercise = makeExercise(word, type, context, typeIndex);
-      // Skip unsupported sentence forms and try another distinct skill instead.
       if (!exercise) continue;
       const perWordKey = `${word.id}:${exercise.type}`;
       if (seenPerWord.has(perWordKey)) continue;
@@ -231,6 +429,7 @@ export function calculateExerciseScore(correct: number, total: number): number {
 
 export function isAdaptiveAnswerCorrect(input: string, expected: string, type: AdaptiveExerciseType): boolean {
   if (type === 'spelling') return normalize(input) === normalize(expected);
+  if (type === 'sentence-assembly') return normalize(input) === normalize(expected);
   return input === expected;
 }
 
@@ -238,6 +437,45 @@ export function validateAdaptiveExercise(exercise: AdaptiveExercise): string[] {
   const errors: string[] = [];
   if (!exercise.id || !exercise.word?.id) errors.push('missing-id');
   if (!exercise.prompt.trim()) errors.push('missing-prompt');
+
+  // Types with no single correct answer to validate against options
+  if (exercise.type === 'matching-pairs' || exercise.type === 'word-translation') {
+    if (exercise.type === 'matching-pairs') {
+      if (!exercise.matchPairs || exercise.matchPairs.length < 4) errors.push('insufficient-match-pairs');
+      if (!exercise.options || exercise.options.length < 4) errors.push('insufficient-match-options');
+    }
+    return errors;
+  }
+
+  // Listening exercises get their options populated at render time (distractors
+  // are added by the component), so skip option validation here.
+  if (exercise.type === 'listening' || exercise.type === 'speaking') {
+    return errors;
+  }
+
+  // Picture-selection validates emojis rather than text options
+  if (exercise.type === 'picture-selection') {
+    if (!exercise.emojis || exercise.emojis.length < 4) errors.push('insufficient-emojis');
+    if (!exercise.emojis?.includes(exercise.correctAnswer)) errors.push('correct-emoji-not-in-options');
+    if (exercise.emojis && new Set(exercise.emojis).size !== exercise.emojis.length) errors.push('duplicate-emojis');
+    return errors;
+  }
+
+  // Sentence-assembly validates tile uniqueness
+  if (exercise.type === 'sentence-assembly') {
+    if (!exercise.options || exercise.options.length < 3) errors.push('insufficient-tiles');
+    if (exercise.correctSentence && exercise.options) {
+      const sentenceTokens = exercise.correctSentence.split(/\s+/);
+      for (const token of sentenceTokens) {
+        if (!exercise.options.includes(token)) {
+          errors.push('missing-tokens');
+          break;
+        }
+      }
+    }
+    return errors;
+  }
+
   if (!exercise.correctAnswer.trim()) errors.push('missing-answer');
   if (exercise.answerMode === 'text' || exercise.type === 'spelling') {
     if (exercise.options.length !== 0) errors.push('text-answer-has-options');

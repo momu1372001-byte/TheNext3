@@ -3,6 +3,14 @@ import { ChevronLeft, Check, X, Volume2, Star, Trophy, RotateCcw } from 'lucide-
 import { Screen, ProgressBar, Button } from '@/components/ui';
 import { recordExercisePerformance, recordWordAnswer, recordWordReviewRating } from '@/data/progressStore';
 import { buildAdaptiveExercisesForWords, calculateExerciseScore, isAdaptiveAnswerCorrect, type AdaptiveExercise, type AdaptiveExerciseOptions, type AdaptiveExerciseType } from '@/data/adaptiveExerciseEngine';
+import {
+  SentenceAssemblyExercise,
+  MatchingPairsExercise,
+  ListeningExercise,
+  PictureSelectionExercise,
+  SpeakingExercise,
+  WordTranslationExercise,
+} from '@/components/ui/SpecializedExercises';
 import type { ReviewRating } from '@/data/reviewScheduler';
 import type { Word } from '@/types';
 
@@ -27,26 +35,20 @@ type ExerciseRunnerProps = {
   badge?: string;
   onBack: () => void;
   onComplete?: (result: ExerciseSessionResult) => void;
-  /** Called for every answer so external systems (session tracking) can react. */
   onAnswer?: (word: Word, correct: boolean) => void;
-  /** Stable per-exercise callback for resumable sessions. */
   onExerciseAnswer?: (exercise: Exercise, correct: boolean) => void;
-  /** Hide the done screen and let the parent handle it (e.g. daily session). */
   hideDoneScreen?: boolean;
-  /** Custom done screen content rendered below the score */
   doneExtra?: React.ReactNode;
   doneTitle?: string;
   doneSubtitle?: string;
   restartLabel?: string;
   backLabel?: string;
   onRestart?: () => void;
-  /** Enable spaced-repetition ratings for the smart review flow. */
   reviewMode?: boolean;
 };
 
 // ---------------------------------------------------------------------------
-// Exercise builder (shared) — delegates to the adaptive engine while keeping
-// the legacy function signature compatible with existing screens.
+// Exercise builder (shared)
 // ---------------------------------------------------------------------------
 
 export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
@@ -61,6 +63,12 @@ export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
   spelling: 'اكتب الكلمة من الذاكرة',
   'context-selection': 'اختر الكلمة المناسبة للسياق',
   'mixed-review': 'مراجعة مختلطة',
+  'sentence-assembly': 'رتّب الكلمات لتكوين الجملة',
+  'matching-pairs': 'طابق الكلمات بترجماتها',
+  listening: 'استمع واختر الكلمة الصحيحة',
+  'picture-selection': 'اختر الصورة الصحيحة',
+  speaking: 'انطق الكلمة',
+  'word-translation': 'ترجمة كلمة بكلمة',
 };
 
 export function buildExercisesForWords(
@@ -78,6 +86,30 @@ export function shuffleArray<T>(arr: T[]): T[] {
   }
   return a;
 }
+
+// Types that use specialized components instead of the generic choice/text renderer
+const SPECIALIZED_TYPES = new Set<ExerciseType>([
+  'sentence-assembly',
+  'matching-pairs',
+  'listening',
+  'picture-selection',
+  'speaking',
+  'word-translation',
+]);
+
+// Types that auto-advance (no explicit "check" needed)
+const AUTO_ANSWER_TYPES = new Set<ExerciseType>([
+  'matching-pairs',
+]);
+
+// Types that don't need the feedback block (they have their own)
+const SELF_FEEDBACK_TYPES = new Set<ExerciseType>([
+  'sentence-assembly',
+  'matching-pairs',
+  'listening',
+  'picture-selection',
+  'speaking',
+]);
 
 // ---------------------------------------------------------------------------
 // Component
@@ -108,14 +140,20 @@ export function ExerciseRunner({
   const [phase, setPhase] = useState<'practice' | 'done'>('practice');
   const [reviewRating, setReviewRating] = useState<ReviewRating | null>(null);
   const [typedAnswer, setTypedAnswer] = useState('');
+  const [specializedCorrect, setSpecializedCorrect] = useState(false);
 
   const current = exercises[currentIdx];
-const isLastReviewQuestionForWord =
-  reviewMode &&
-  Boolean(current) &&
-  !exercises
-    .slice(currentIdx + 1)
-    .some((exercise) => exercise.word.id === current.word.id);
+  const isSpecialized = current && SPECIALIZED_TYPES.has(current.type);
+  const isSelfFeedback = current && SELF_FEEDBACK_TYPES.has(current.type);
+  const isAutoAnswer = current && AUTO_ANSWER_TYPES.has(current.type);
+
+  const isLastReviewQuestionForWord =
+    reviewMode &&
+    Boolean(current) &&
+    !exercises
+      .slice(currentIdx + 1)
+      .some((exercise) => exercise.word.id === current.word.id);
+
   const handleAnswer = useCallback(
     (option: string) => {
       if (answered || !current) return;
@@ -128,8 +166,27 @@ const isLastReviewQuestionForWord =
       } else {
         setWrongWords((w) => [...w, current.word]);
       }
-      // In smart-review mode, the user's spaced-repetition rating is recorded
-      // separately below. Avoid recording the same answer twice.
+      if (!reviewMode) {
+        recordWordAnswer(current.word.id, correct);
+      }
+      onAnswer?.(current.word, correct);
+      onExerciseAnswer?.(current, correct);
+    },
+    [answered, current, onAnswer, onExerciseAnswer, reviewMode],
+  );
+
+  // Handle answer from specialized components
+  const handleSpecializedAnswer = useCallback(
+    (correct: boolean) => {
+      if (answered || !current) return;
+      setSpecializedCorrect(correct);
+      setAnswered(true);
+      recordExercisePerformance(current.word.id, current.type, correct);
+      if (correct) {
+        setCorrectCount((c) => c + 1);
+      } else {
+        setWrongWords((w) => [...w, current.word]);
+      }
       if (!reviewMode) {
         recordWordAnswer(current.word.id, correct);
       }
@@ -153,6 +210,7 @@ const isLastReviewQuestionForWord =
       setAnswered(false);
       setReviewRating(null);
       setTypedAnswer('');
+      setSpecializedCorrect(false);
     }
   }, [currentIdx, exercises.length, correctCount, wrongWords, onComplete, hideDoneScreen]);
 
@@ -167,6 +225,7 @@ const isLastReviewQuestionForWord =
     setWrongWords([]);
     setReviewRating(null);
     setTypedAnswer('');
+    setSpecializedCorrect(false);
     setPhase('practice');
   }, [onRestart]);
 
@@ -269,7 +328,9 @@ const isLastReviewQuestionForWord =
   }
 
   // --- Practice phase ---
-  const isCorrect = selected !== null && isAdaptiveAnswerCorrect(selected, current.correctAnswer, current.type);
+  const isCorrect = isSpecialized
+    ? specializedCorrect
+    : selected !== null && isAdaptiveAnswerCorrect(selected, current.correctAnswer, current.type);
   const isLast = currentIdx === exercises.length - 1;
 
   return (
@@ -304,100 +365,173 @@ const isLastReviewQuestionForWord =
       </div>
 
       <div className="flex flex-col gap-5 px-5 pb-8 flex-1 overflow-y-auto no-scrollbar">
+        {/* Prompt header */}
         <div key={currentIdx} className="flex flex-col items-center text-center gap-3 pt-4 animate-fade-up">
           <p className="text-2xs text-text-muted">{EXERCISE_TYPE_LABELS[current.type]}</p>
 
-          {['ar-to-en', 'recall', 'definition-match'].includes(current.type) ? (
-            <h2 className="text-4xl font-bold text-primary-500">{current.prompt}</h2>
+          {isSpecialized ? (
+            // Specialized exercises render their own prompt content
+            current.type === 'word-translation' ? (
+              <>
+                <p className="text-2xs text-text-muted">ترجمة كلمة بكلمة</p>
+              </>
+            ) : current.type === 'listening' ? (
+              <h2 className="text-xl font-bold text-text-primary">{current.prompt}</h2>
+            ) : current.type === 'speaking' ? null : current.type === 'picture-selection' ? (
+              <>
+                <h2 className="text-3xl font-bold text-primary-500">{current.prompt}</h2>
+                {current.promptSub && <p className="text-2xs text-text-muted">{current.promptSub}</p>}
+              </>
+            ) : current.type === 'sentence-assembly' ? (
+              <>
+                <h2 className="text-lg font-bold text-text-primary">{current.prompt}</h2>
+                {current.promptSub && <p className="text-2xs text-text-muted">{current.promptSub}</p>}
+              </>
+            ) : current.type === 'matching-pairs' ? (
+              <h2 className="text-lg font-bold text-text-primary">{current.prompt}</h2>
+            ) : null
           ) : (
-            <h2 className="text-3xl font-bold text-text-primary ltr leading-relaxed">{current.prompt}</h2>
-          )}
-
-          {current.promptSub && (
-            ['fill-blank', 'sentence-completion', 'context-selection', 'mixed-review'].includes(current.type) ? (
-              <p className="text-sm text-text-muted">{current.promptSub}</p>
-            ) : (
-              <p className="text-2xs text-text-muted ltr">{current.promptSub}</p>
-            )
-          )}
-
-          {['en-to-ar', 'recognition'].includes(current.type) && (
-            <button
-              className="flex items-center gap-1.5 text-2xs text-text-muted hover:text-primary-500 transition-colors mt-1"
-              onClick={() => {
-                try {
-                  const utterance = new SpeechSynthesisUtterance(current.word.word);
-                  utterance.lang = 'en-US';
-                  window.speechSynthesis.speak(utterance);
-                } catch {
-                  // speech not available
-                }
-              }}
-            >
-              <Volume2 size={14} />
-              <span>استمع</span>
-            </button>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {current.type === 'spelling' ? (
-            <form
-              className="flex flex-col gap-3"
-              onSubmit={(event) => { event.preventDefault(); if (typedAnswer.trim()) handleAnswer(typedAnswer); }}
-            >
-              <input
-                value={typedAnswer}
-                onChange={(event) => setTypedAnswer(event.target.value)}
-                disabled={answered}
-                autoComplete="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                aria-label="اكتب الكلمة الإنجليزية"
-                placeholder="اكتب الكلمة الإنجليزية هنا"
-                className="w-full rounded-lg border-2 border-border bg-surface p-4 text-lg text-text-primary ltr outline-none focus:border-primary-500 disabled:opacity-70"
-              />
-              {!answered && (
-                <Button type="submit" fullWidth size="lg" disabled={!typedAnswer.trim()}>
-                  تحقق من الإجابة
-                </Button>
+            <>
+              {['ar-to-en', 'recall', 'definition-match'].includes(current.type) ? (
+                <h2 className="text-4xl font-bold text-primary-500">{current.prompt}</h2>
+              ) : (
+                <h2 className="text-3xl font-bold text-text-primary ltr leading-relaxed">{current.prompt}</h2>
               )}
-            </form>
-          ) : current.options.map((option) => {
-            const isThisCorrect = option === current.correctAnswer;
-            const isThisSelected = option === selected;
 
-            let stateClass = 'border-border bg-surface text-text-primary hover:border-primary-500/50';
-            if (answered) {
-              if (isThisCorrect) {
-                stateClass = 'border-success-500 bg-success-500/10 text-success-400';
-              } else if (isThisSelected) {
-                stateClass = 'border-error-500 bg-error-500/10 text-error-400';
-              } else {
-                stateClass = 'border-border/50 bg-surface/50 text-text-muted';
-              }
-            }
+              {current.promptSub && (
+                ['fill-blank', 'sentence-completion', 'context-selection', 'mixed-review'].includes(current.type) ? (
+                  <p className="text-sm text-text-muted">{current.promptSub}</p>
+                ) : (
+                  <p className="text-2xs text-text-muted ltr">{current.promptSub}</p>
+                )
+              )}
 
-            return (
-              <button
-                key={option}
-                onClick={() => handleAnswer(option)}
-                disabled={answered}
-                className={`flex items-center justify-between gap-3 rounded-lg border-2 p-4 transition-all duration-200 ${stateClass} ${
-                  !answered ? 'cursor-pointer active:scale-[0.98]' : ''
-                }`}
-              >
-                <span className={`font-semibold text-lg ${current.isArabicOptions ? 'text-xl' : 'ltr'}`}>
-                  {option}
-                </span>
-                {answered && isThisCorrect && <Check size={20} className="text-success-400 shrink-0" />}
-                {answered && isThisSelected && !isThisCorrect && <X size={20} className="text-error-400 shrink-0" />}
-              </button>
-            );
-          })}
+              {['en-to-ar', 'recognition'].includes(current.type) && (
+                <button
+                  className="flex items-center gap-1.5 text-2xs text-text-muted hover:text-primary-500 transition-colors mt-1"
+                  onClick={() => {
+                    try {
+                      const utterance = new SpeechSynthesisUtterance(current.word.word);
+                      utterance.lang = 'en-US';
+                      window.speechSynthesis.speak(utterance);
+                    } catch { /* speech not available */ }
+                  }}
+                >
+                  <Volume2 size={14} />
+                  <span>استمع</span>
+                </button>
+              )}
+            </>
+          )}
         </div>
 
-        {answered && (
+        {/* Exercise body */}
+        {isSpecialized ? (
+          <div className="flex flex-col gap-4">
+            {current.type === 'sentence-assembly' && (
+              <SentenceAssemblyExercise
+                exercise={current}
+                answered={answered}
+                onAnswer={handleSpecializedAnswer}
+              />
+            )}
+            {current.type === 'matching-pairs' && (
+              <MatchingPairsExercise
+                exercise={current}
+                answered={answered}
+                onAnswer={handleSpecializedAnswer}
+              />
+            )}
+            {current.type === 'listening' && (
+              <ListeningExercise
+                exercise={current}
+                answered={answered}
+                onAnswer={handleSpecializedAnswer}
+              />
+            )}
+            {current.type === 'picture-selection' && (
+              <PictureSelectionExercise
+                exercise={current}
+                answered={answered}
+                onAnswer={handleSpecializedAnswer}
+              />
+            )}
+            {current.type === 'speaking' && (
+              <SpeakingExercise
+                exercise={current}
+                answered={answered}
+                onAnswer={handleSpecializedAnswer}
+              />
+            )}
+            {current.type === 'word-translation' && (
+              <WordTranslationExercise
+                exercise={current}
+                answered={answered}
+                onAnswer={handleSpecializedAnswer}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {current.type === 'spelling' ? (
+              <form
+                className="flex flex-col gap-3"
+                onSubmit={(event) => { event.preventDefault(); if (typedAnswer.trim()) handleAnswer(typedAnswer); }}
+              >
+                <input
+                  value={typedAnswer}
+                  onChange={(event) => setTypedAnswer(event.target.value)}
+                  disabled={answered}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  aria-label="اكتب الكلمة الإنجليزية"
+                  placeholder="اكتب الكلمة الإنجليزية هنا"
+                  className="w-full rounded-lg border-2 border-border bg-surface p-4 text-lg text-text-primary ltr outline-none focus:border-primary-500 disabled:opacity-70"
+                />
+                {!answered && (
+                  <Button type="submit" fullWidth size="lg" disabled={!typedAnswer.trim()}>
+                    تحقق من الإجابة
+                  </Button>
+                )}
+              </form>
+            ) : current.options.map((option) => {
+              const isThisCorrect = option === current.correctAnswer;
+              const isThisSelected = option === selected;
+
+              let stateClass = 'border-border bg-surface text-text-primary hover:border-primary-500/50';
+              if (answered) {
+                if (isThisCorrect) {
+                  stateClass = 'border-success-500 bg-success-500/10 text-success-400';
+                } else if (isThisSelected) {
+                  stateClass = 'border-error-500 bg-error-500/10 text-error-400';
+                } else {
+                  stateClass = 'border-border/50 bg-surface/50 text-text-muted';
+                }
+              }
+
+              return (
+                <button
+                  key={option}
+                  onClick={() => handleAnswer(option)}
+                  disabled={answered}
+                  className={`flex items-center justify-between gap-3 rounded-lg border-2 p-4 transition-all duration-200 ${stateClass} ${
+                    !answered ? 'cursor-pointer active:scale-[0.98]' : ''
+                  }`}
+                >
+                  <span className={`font-semibold text-lg ${current.isArabicOptions ? 'text-xl' : 'ltr'}`}>
+                    {option}
+                  </span>
+                  {answered && isThisCorrect && <Check size={20} className="text-success-400 shrink-0" />}
+                  {answered && isThisSelected && !isThisCorrect && <X size={20} className="text-error-400 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Feedback + continue — only for non-self-feedback types */}
+        {answered && !isSelfFeedback && (
           <div className="flex flex-col gap-3 animate-fade-up">
             <div
               className={`rounded-lg p-4 border ${
@@ -436,7 +570,7 @@ const isLastReviewQuestionForWord =
               </div>
             </div>
 
-            {reviewMode &&isLastReviewQuestionForWord &&  (
+            {reviewMode && isLastReviewQuestionForWord && (
               <div className="flex flex-col gap-2">
                 <p className="text-sm font-semibold text-text-primary text-center">
                   ما مدى سهولة تذكّر الكلمة؟
@@ -477,6 +611,103 @@ const isLastReviewQuestionForWord =
               {isLast ? 'إنهاء وعرض النتيجة' : 'متابعة'}
             </Button>
           </div>
+        )}
+
+        {/* For self-feedback types, show only the continue button after answering */}
+        {answered && isSelfFeedback && !isAutoAnswer && (
+          <div className="flex flex-col gap-3 animate-fade-up">
+            {reviewMode && isLastReviewQuestionForWord && (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-semibold text-text-primary text-center">
+                  ما مدى سهولة تذكّر الكلمة؟
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      ['again', 'مرة أخرى'],
+                      ['hard', 'صعبة'],
+                      ['good', 'جيدة'],
+                      ['easy', 'سهلة'],
+                    ] as const
+                  ).map(([rating, label]) => (
+                    <Button
+                      key={rating}
+                      fullWidth
+                      variant="ghost"
+                      disabled={reviewRating !== null}
+                      onClick={() => {
+                        if (reviewRating !== null) return;
+                        recordWordReviewRating(current.word.id, rating);
+                        setReviewRating(rating);
+                      }}
+                    >
+                      {reviewRating === rating ? `✓ ${label}` : label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <Button
+              fullWidth
+              size="lg"
+              onClick={handleContinue}
+              disabled={reviewMode && isLastReviewQuestionForWord && reviewRating === null}
+            >
+              {isLast ? 'إنهاء وعرض النتيجة' : 'متابعة'}
+            </Button>
+          </div>
+        )}
+
+        {/* For auto-answer types (matching-pairs), show continue after completion */}
+        {answered && isAutoAnswer && (
+          <div className="flex flex-col gap-3 animate-fade-up">
+            {reviewMode && isLastReviewQuestionForWord && (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-semibold text-text-primary text-center">
+                  ما مدى سهولة تذكّر الكلمة؟
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      ['again', 'مرة أخرى'],
+                      ['hard', 'صعبة'],
+                      ['good', 'جيدة'],
+                      ['easy', 'سهلة'],
+                    ] as const
+                  ).map(([rating, label]) => (
+                    <Button
+                      key={rating}
+                      fullWidth
+                      variant="ghost"
+                      disabled={reviewRating !== null}
+                      onClick={() => {
+                        if (reviewRating !== null) return;
+                        recordWordReviewRating(current.word.id, rating);
+                        setReviewRating(rating);
+                      }}
+                    >
+                      {reviewRating === rating ? `✓ ${label}` : label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <Button
+              fullWidth
+              size="lg"
+              onClick={handleContinue}
+              disabled={reviewMode && isLastReviewQuestionForWord && reviewRating === null}
+            >
+              {isLast ? 'إنهاء وعرض النتيجة' : 'متابعة'}
+            </Button>
+          </div>
+        )}
+
+        {/* Word-translation: always has a continue button since it's exploratory */}
+        {current.type === 'word-translation' && !answered && (
+          <Button fullWidth size="lg" onClick={() => handleSpecializedAnswer(true)}>
+            متابعة
+          </Button>
         )}
       </div>
     </Screen>
