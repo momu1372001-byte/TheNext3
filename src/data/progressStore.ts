@@ -1,5 +1,5 @@
 import type { LevelCode, Word } from '@/types';
-import { getWordsByLevel, getAllLevels, getWordById } from '@/data/vocabularyRepository';
+import { getWordsByLevel, getAllLevels, getWordById, getAllWords } from '@/data/vocabularyRepository';
 import { ACHIEVEMENTS } from '@/data/achievements';
 import {
   normalizeReviewSchedule,
@@ -8,6 +8,8 @@ import {
   type ReviewRating,
   type ReviewSchedule,
 } from '@/data/reviewScheduler';
+import { buildAdaptiveDailyQueue, type DailyQueueItem } from '@/data/dailySessionQueue';
+import { applySessionExercise } from '@/data/dailySessionState';
 const LEGACY_STORAGE_KEY = 'words-app-progress-v1';
 const LEGACY_SESSION_KEY = 'words-app-session-v1';
 
@@ -57,6 +59,22 @@ export type PlacementResult = {
   completedAt: string;
 };
 
+export type ExerciseTypeStats = {
+  attempts: number;
+  correct: number;
+  wrong: number;
+  lastAnsweredAt: string | null;
+};
+
+export type WordExercisePerformance = {
+  attempts: number;
+  correct: number;
+  wrong: number;
+  lastWrongType: string | null;
+  updatedAt: string | null;
+  byType: Record<string, ExerciseTypeStats>;
+};
+
 export type ProgressState = {
   lessons: Record<string, LessonProgress>;
   learnedWordIds: string[];
@@ -69,6 +87,8 @@ export type ProgressState = {
   placement: PlacementResult | null;
   bestSessionAccuracy: number;
   dailyGoalsCompleted: number;
+  /** Per-word exercise performance used by adaptive exercise selection. */
+  exercisePerformance: Record<string, WordExercisePerformance>;
 };
 
 const INITIAL_STATE: ProgressState = {
@@ -83,6 +103,7 @@ const INITIAL_STATE: ProgressState = {
   placement: null,
   bestSessionAccuracy: 0,
   dailyGoalsCompleted: 0,
+  exercisePerformance: {},
 };
 
 function load(): ProgressState {
@@ -109,6 +130,7 @@ function load(): ProgressState {
       placement: parsed.placement ?? null,
       bestSessionAccuracy: parsed.bestSessionAccuracy ?? 0,
       dailyGoalsCompleted: parsed.dailyGoalsCompleted ?? 0,
+      exercisePerformance: parsed.exercisePerformance ?? {},
     };
   } catch (error) {
     console.error('Failed to load local progress:', error);
@@ -253,6 +275,36 @@ function bumpActivity(
   return { ...state.activityLog, [today]: prev + newlyLearned };
 }
 
+
+export function recordExercisePerformance(wordId: string, exerciseType: string, correct: boolean): void {
+  const now = new Date().toISOString();
+  const current = currentState.exercisePerformance[wordId] ?? {
+    attempts: 0, correct: 0, wrong: 0, lastWrongType: null, updatedAt: null, byType: {},
+  };
+  const typeStats = current.byType[exerciseType] ?? { attempts: 0, correct: 0, wrong: 0, lastAnsweredAt: null };
+  const nextTypeStats: ExerciseTypeStats = {
+    attempts: typeStats.attempts + 1,
+    correct: typeStats.correct + (correct ? 1 : 0),
+    wrong: typeStats.wrong + (correct ? 0 : 1),
+    lastAnsweredAt: now,
+  };
+  currentState = {
+    ...currentState,
+    exercisePerformance: {
+      ...currentState.exercisePerformance,
+      [wordId]: {
+        attempts: current.attempts + 1,
+        correct: current.correct + (correct ? 1 : 0),
+        wrong: current.wrong + (correct ? 0 : 1),
+        lastWrongType: correct ? current.lastWrongType : exerciseType,
+        updatedAt: now,
+        byType: { ...current.byType, [exerciseType]: nextTypeStats },
+      },
+    },
+  };
+  save(currentState);
+  notify();
+}
 
 export function recordWordAnswer(
   wordId: string,
@@ -441,23 +493,81 @@ export function getReviewWords(): ReviewEntry[] {
 /* based on the user's level and daily goal.                           */
 /* ------------------------------------------------------------------ */
 
+export type DailySessionItem = DailyQueueItem & {
+  status: 'pending' | 'completed';
+  attempts: number;
+  lastAnswerCorrect: boolean | null;
+  answeredAt: string | null;
+  exerciseIds: string[];
+};
+
 export type DailySession = {
   date: string;
   wordIds: string[];
   completedCount: number;
   done: boolean;
+  items?: DailySessionItem[];
+  dailyGoal?: number;
+  estimatedMinutes?: number;
+  completedExerciseIds?: string[];
+  rewardClaimed?: boolean;
 };
+
+function normalizeSession(parsed: Partial<DailySession>, today: string): DailySession | null {
+  if (parsed.date !== today || !Array.isArray(parsed.wordIds)) return null;
+  const wordIds = [...new Set(parsed.wordIds.filter((id): id is string => typeof id === 'string'))];
+  const oldItems = Array.isArray(parsed.items) ? parsed.items : [];
+  const itemById = new Map(oldItems.map((item) => [item.wordId, item]));
+  const legacyCompleted = parsed.done ? wordIds.length : Math.max(0, Math.min(wordIds.length, parsed.completedCount ?? 0));
+  const items: DailySessionItem[] = wordIds.map((wordId, index) => {
+    const old = itemById.get(wordId);
+    if (old) {
+      return {
+        ...old,
+        status: old.status === 'completed' ? 'completed' : 'pending',
+        attempts: Math.max(0, old.attempts ?? 0),
+        lastAnswerCorrect: old.lastAnswerCorrect ?? null,
+        answeredAt: old.answeredAt ?? null,
+        exerciseIds: Array.isArray(old.exerciseIds) ? old.exerciseIds : [],
+      };
+    }
+    const word = getWordById(wordId);
+    return {
+      wordId,
+      reason: 'new-word',
+      priority: 0,
+      difficulty: word?.difficulty ?? 3,
+      estimatedMinutes: 2,
+      dueAt: null,
+      status: index < legacyCompleted ? 'completed' : 'pending',
+      attempts: 0,
+      lastAnswerCorrect: null,
+      answeredAt: null,
+      exerciseIds: [],
+    };
+  });
+  const completedCount = items.filter((item) => item.status === 'completed').length;
+  return {
+    date: today,
+    wordIds,
+    items,
+    completedCount,
+    done: Boolean(parsed.done) || (items.length > 0 && completedCount === items.length),
+    dailyGoal: parsed.dailyGoal,
+    estimatedMinutes: parsed.estimatedMinutes ?? items.reduce((sum, item) => sum + item.estimatedMinutes, 0),
+    completedExerciseIds: Array.isArray(parsed.completedExerciseIds) ? parsed.completedExerciseIds : [],
+    rewardClaimed: Boolean(parsed.rewardClaimed),
+  };
+}
 
 function loadSession(): DailySession | null {
   try {
     const raw = localStorage.getItem(getSessionStorageKey());
     if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as DailySession;
     const today = dateKey(new Date());
-
-    if (parsed.date !== today) return null;
-    return parsed;
+    const normalized = normalizeSession(JSON.parse(raw) as Partial<DailySession>, today);
+    if (normalized) saveSession(normalized);
+    return normalized;
   } catch {
     return null;
   }
@@ -471,40 +581,6 @@ function saveSession(session: DailySession): void {
   }
 }
 
-function pickNewWords(level: LevelCode, count: number): string[] {
-  const levelWords = getWordsByLevel(level);
-  const learnedSet = new Set(currentState.learnedWordIds);
-
-  const fresh = levelWords.filter(
-    (w) =>
-      !learnedSet.has(w.id) &&
-      currentState.words[w.id]?.status !== 'learning',
-  );
-
-  const pool =
-    fresh.length >= count
-      ? fresh
-      : levelWords.filter((w) => !learnedSet.has(w.id));
-
-  return shuffleIds(pool.map((w) => w.id)).slice(0, count);
-}
-
-function pickReviewWords(count: number): string[] {
-  const review = getReviewWords();
-  return shuffleIds(review.map((r) => r.wordId)).slice(0, count);
-}
-
-function shuffleIds<T>(arr: T[]): T[] {
-  const a = [...arr];
-
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-
-  return a;
-}
-
 export function getOrCreateDailySession(
   level: LevelCode,
   dailyGoal: number,
@@ -512,31 +588,42 @@ export function getOrCreateDailySession(
   const existing = loadSession();
   if (existing) return existing;
 
-  const reviewBudget = Math.min(
-    Math.floor(dailyGoal * 0.4),
-    getReviewWords().length,
-  );
+  const learned = new Set(currentState.learnedWordIds);
+  const candidates = getAllWords().map((word) => {
+    const progress = currentState.words[word.id];
+    const schedule = normalizeReviewSchedule(progress);
+    return {
+      word,
+      status: progress?.status ?? 'new',
+      learned: learned.has(word.id),
+      nextReviewAt: schedule.nextReviewAt,
+      lastReviewedAt: schedule.lastReviewedAt,
+      wrongCount: schedule.wrongCount,
+      correctCount: schedule.correctCount,
+      familiarity: schedule.familiarity,
+      interval: schedule.interval,
+    };
+  });
 
-  const newBudget = dailyGoal - reviewBudget;
-
-  const newIds = pickNewWords(level, newBudget);
-  const reviewIds = pickReviewWords(reviewBudget);
-
-  const seen = new Set<string>();
-  const wordIds: string[] = [];
-
-  for (const id of [...reviewIds, ...newIds]) {
-    if (!seen.has(id)) {
-      seen.add(id);
-      wordIds.push(id);
-    }
-  }
-
+  const queue = buildAdaptiveDailyQueue(candidates, level, dailyGoal);
+  const items: DailySessionItem[] = queue.items.map((item) => ({
+    ...item,
+    status: 'pending',
+    attempts: 0,
+    lastAnswerCorrect: null,
+    answeredAt: null,
+    exerciseIds: [],
+  }));
   const session: DailySession = {
     date: dateKey(new Date()),
-    wordIds,
+    wordIds: items.map((item) => item.wordId),
+    items,
     completedCount: 0,
-    done: wordIds.length === 0,
+    done: items.length === 0,
+    dailyGoal: queue.goal,
+    estimatedMinutes: queue.estimatedMinutes,
+    completedExerciseIds: [],
+    rewardClaimed: false,
   };
 
   saveSession(session);
@@ -547,38 +634,52 @@ export function getDailySession(): DailySession | null {
   return loadSession();
 }
 
-export function recordSessionWord(
+/**
+ * Stores the stable exercise IDs for each queue word. Exercise order is
+ * deterministic in the daily screen so a resumed session can skip answered items.
+ */
+export function setDailySessionExercisePlan(
+  plan: Array<{ wordId: string; exerciseIds: string[] }>,
+): DailySession | null {
+  const session = loadSession();
+  if (!session) return null;
+  const planById = new Map(plan.map((entry) => [entry.wordId, entry.exerciseIds]));
+  const completedExerciseIds = new Set(session.completedExerciseIds ?? []);
+  const items = (session.items ?? []).map((item) => {
+    const exerciseIds = item.exerciseIds.length > 0
+      ? item.exerciseIds
+      : (planById.get(item.wordId) ?? []);
+    // Legacy sessions only stored a completed count, not individual exercises.
+    // Preserve that progress by skipping the exercises of migrated completed items.
+    if (item.status === 'completed') exerciseIds.forEach((id) => completedExerciseIds.add(id));
+    return { ...item, exerciseIds };
+  });
+  const updated = { ...session, items, completedExerciseIds: [...completedExerciseIds] };
+  saveSession(updated);
+  return updated;
+}
+
+/** Record a single exercise once; repeated callbacks cannot duplicate completion. */
+export function recordSessionExercise(
   wordId: string,
+  exerciseId: string,
   correct: boolean,
 ): DailySession {
-  recordWordAnswer(wordId, correct);
-
   const session = loadSession();
-
   if (!session) {
-    return {
-      date: dateKey(new Date()),
-      wordIds: [],
-      completedCount: 0,
-      done: true,
-    };
+    return { date: dateKey(new Date()), wordIds: [], completedCount: 0, done: true };
   }
-
-  const isLearned =
-    currentState.learnedWordIds.includes(wordId) ||
-    currentState.words[wordId]?.status === 'reviewed' ||
-    correct;
-
-  const completedCount = isLearned
-    ? session.completedCount + 1
-    : session.completedCount;
-
-  const done = completedCount >= session.wordIds.length;
-
-  const updated: DailySession = { ...session, completedCount, done };
-  saveSession(updated);
-
+  const updated = applySessionExercise(session, wordId, exerciseId, correct);
+  if (updated !== session) saveSession(updated);
   return updated;
+}
+
+/** Backwards-compatible entry point for any older caller. */
+export function recordSessionWord(wordId: string, correct: boolean): DailySession {
+  const session = loadSession();
+  const item = session?.items?.find((entry) => entry.wordId === wordId);
+  const nextExercise = item?.exerciseIds.find((id) => !(session?.completedExerciseIds ?? []).includes(id));
+  return recordSessionExercise(wordId, nextExercise ?? `${wordId}:legacy`, correct);
 }
 
 export function completeDailySession(): {
@@ -587,7 +688,7 @@ export function completeDailySession(): {
 } {
   const session = loadSession();
 
-  if (!session || session.done) {
+  if (!session || session.wordIds.length === 0 || !session.done || session.rewardClaimed) {
     return { xpGained: 0, newStreak: currentState.streak };
   }
 
@@ -620,7 +721,7 @@ export function completeDailySession(): {
     activityLog: bumpActivity(
       currentState,
       today,
-      Math.max(newlyLearned, session.wordIds.length),
+      newlyLearned,
     ),
   };
 
@@ -630,6 +731,7 @@ export function completeDailySession(): {
     ...session,
     done: true,
     completedCount: session.wordIds.length,
+    rewardClaimed: true,
   };
 
   saveSession(updatedSession);
@@ -982,6 +1084,7 @@ export function importProgress(external: Partial<ProgressState>): void {
     placement: external.placement ?? null,
     bestSessionAccuracy: external.bestSessionAccuracy ?? 0,
     dailyGoalsCompleted: external.dailyGoalsCompleted ?? 0,
+    exercisePerformance: external.exercisePerformance ?? {},
   };
 
   currentState = incoming;

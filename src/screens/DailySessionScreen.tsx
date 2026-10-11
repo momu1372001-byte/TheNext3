@@ -1,10 +1,12 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Zap, Flame, ArrowLeft } from 'lucide-react';
 import { Screen, Button, ExerciseRunner, buildExercisesForWords, type Exercise } from '@/components/ui';
 import { getWordById } from '@/data/vocabularyRepository';
 import {
   getOrCreateDailySession,
-  recordSessionWord,
+  getDailySession,
+  setDailySessionExercisePlan,
+  recordSessionExercise,
   completeDailySession,
   recordSessionAccuracy,
   recordDailyGoalCompleted,
@@ -20,8 +22,8 @@ type DailySessionScreenProps = {
 };
 
 export function DailySessionScreen({ level, dailyGoal, onBack }: DailySessionScreenProps) {
-  const [session] = useState<DailySession>(() => getOrCreateDailySession(level, dailyGoal));
-  const [phase, setPhase] = useState<'practice' | 'done'>('practice');
+  const [session, setSession] = useState<DailySession>(() => getOrCreateDailySession(level, dailyGoal));
+  const [phase, setPhase] = useState<'practice' | 'done'>(() => session.done ? 'done' : 'practice');
   const [result, setResult] = useState<{ xpGained: number; newStreak: number }>({ xpGained: 0, newStreak: 0 });
   const [doneScore, setDoneScore] = useState(0);
 
@@ -30,11 +32,37 @@ export function DailySessionScreen({ level, dailyGoal, onBack }: DailySessionScr
     [session.wordIds],
   );
 
-  const [exercises] = useState<Exercise[]>(() => buildExercisesForWords(sessionWords, { widePool: true }));
+  const [allExercises] = useState<Exercise[]>(() =>
+    buildExercisesForWords(sessionWords, { widePool: true, shuffleExercises: false }),
+  );
 
-  const handleAnswer = useCallback(
-    (word: Word, correct: boolean) => {
-      recordSessionWord(word.id, correct);
+  useEffect(() => {
+    const plan = session.wordIds.map((wordId) => ({
+      wordId,
+      exerciseIds: allExercises
+        .filter((exercise) => exercise.word.id === wordId)
+        .map((exercise) => `${exercise.word.id}:${exercise.type}`),
+    }));
+    const updated = setDailySessionExercisePlan(plan);
+    if (updated) setSession(updated);
+  // The exercise plan is deliberately established once per session.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const exercises = useMemo(() => {
+    const completed = new Set(session.completedExerciseIds ?? []);
+    return allExercises.filter(
+      (exercise) => !completed.has(`${exercise.word.id}:${exercise.type}`),
+    );
+  }, [allExercises, session.completedExerciseIds]);
+
+  const handleExerciseAnswer = useCallback(
+    (exercise: Exercise, correct: boolean) => {
+      recordSessionExercise(
+        exercise.word.id,
+        `${exercise.word.id}:${exercise.type}`,
+        correct,
+      );
     },
     [],
   );
@@ -42,15 +70,32 @@ export function DailySessionScreen({ level, dailyGoal, onBack }: DailySessionScr
   const handleComplete = useCallback(
     (res: { score: number }) => {
       const r = completeDailySession();
+      const latest = getDailySession();
+      if (latest) setSession(latest);
       setResult(r);
       setDoneScore(res.score);
       recordSessionAccuracy(res.score);
-      recordDailyGoalCompleted();
-      checkAndUnlockAchievements();
+      if (r.xpGained > 0) {
+        recordDailyGoalCompleted();
+        checkAndUnlockAchievements();
+      }
       setPhase('done');
     },
     [],
   );
+
+  useEffect(() => {
+    if (!session.done || session.rewardClaimed || session.wordIds.length === 0) return;
+    const r = completeDailySession();
+    setResult(r);
+    if (r.xpGained > 0) {
+      recordDailyGoalCompleted();
+      checkAndUnlockAchievements();
+    }
+    const latest = getDailySession();
+    if (latest) setSession(latest);
+    setPhase('done');
+  }, [session.done, session.rewardClaimed, session.wordIds.length]);
 
   if (sessionWords.length === 0) {
     return (
@@ -135,7 +180,7 @@ export function DailySessionScreen({ level, dailyGoal, onBack }: DailySessionScr
       title="جلسة اليوم"
       badge="يومي"
       onBack={onBack}
-      onAnswer={handleAnswer}
+      onExerciseAnswer={handleExerciseAnswer}
       onComplete={handleComplete}
       hideDoneScreen
     />

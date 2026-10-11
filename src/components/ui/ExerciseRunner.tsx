@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { ChevronLeft, Check, X, Volume2, Star, Trophy, RotateCcw } from 'lucide-react';
 import { Screen, ProgressBar, Button } from '@/components/ui';
-import { getAllWords } from '@/data/vocabularyRepository';
-import { recordWordAnswer, recordWordReviewRating } from '@/data/progressStore';
+import { recordExercisePerformance, recordWordAnswer, recordWordReviewRating } from '@/data/progressStore';
+import { buildAdaptiveExercisesForWords, calculateExerciseScore, isAdaptiveAnswerCorrect, type AdaptiveExercise, type AdaptiveExerciseOptions, type AdaptiveExerciseType } from '@/data/adaptiveExerciseEngine';
 import type { ReviewRating } from '@/data/reviewScheduler';
 import type { Word } from '@/types';
 
@@ -10,17 +10,8 @@ import type { Word } from '@/types';
 // Types
 // ---------------------------------------------------------------------------
 
-export type ExerciseType = 'en-to-ar' | 'ar-to-en' | 'fill-blank';
-
-export type Exercise = {
-  type: ExerciseType;
-  word: Word;
-  prompt: string;
-  promptSub?: string;
-  options: string[];
-  correctAnswer: string;
-  isArabicOptions: boolean;
-};
+export type ExerciseType = AdaptiveExerciseType;
+export type Exercise = AdaptiveExercise;
 
 export type ExerciseSessionResult = {
   total: number;
@@ -38,6 +29,8 @@ type ExerciseRunnerProps = {
   onComplete?: (result: ExerciseSessionResult) => void;
   /** Called for every answer so external systems (session tracking) can react. */
   onAnswer?: (word: Word, correct: boolean) => void;
+  /** Stable per-exercise callback for resumable sessions. */
+  onExerciseAnswer?: (exercise: Exercise, correct: boolean) => void;
   /** Hide the done screen and let the parent handle it (e.g. daily session). */
   hideDoneScreen?: boolean;
   /** Custom done screen content rendered below the score */
@@ -52,100 +45,38 @@ type ExerciseRunnerProps = {
 };
 
 // ---------------------------------------------------------------------------
-// Exercise builder (shared)
+// Exercise builder (shared) — delegates to the adaptive engine while keeping
+// the legacy function signature compatible with existing screens.
 // ---------------------------------------------------------------------------
 
-function shuffle<T>(arr: T[]): T[] {
+export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
+  'en-to-ar': 'اختر المعنى العربي الصحيح',
+  'ar-to-en': 'اختر الكلمة الإنجليزية الصحيحة',
+  'fill-blank': 'أكمل الفراغ بالكلمة الصحيحة',
+  recognition: 'تعرّف على معنى الكلمة',
+  recall: 'استدعِ الكلمة من معناها',
+  translation: 'ترجم الكلمة',
+  'definition-match': 'طابق التعريف مع الكلمة',
+  'sentence-completion': 'أكمل الجملة',
+  spelling: 'اكتب الكلمة من الذاكرة',
+  'context-selection': 'اختر الكلمة المناسبة للسياق',
+  'mixed-review': 'مراجعة مختلطة',
+};
+
+export function buildExercisesForWords(
+  words: Word[],
+  options?: AdaptiveExerciseOptions,
+): Exercise[] {
+  return buildAdaptiveExercisesForWords(words, options);
+}
+
+export function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
-}
-
-function pickDistractors(pool: string[], correct: string, count: number): string[] {
-  return shuffle(pool.filter((w) => w !== correct)).slice(0, count);
-}
-
-export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
-  'en-to-ar': 'اختر المعنى العربي الصحيح',
-  'ar-to-en': 'اختر الكلمة الإنجليزية الصحيحة',
-  'fill-blank': 'أكمل الفراغ بالكلمة الصحيحة',
-};
-
-export function buildExercisesForWords(
-  words: Word[],
-  options?: { widePool?: boolean; maxExercises?: number },
-): Exercise[] {
-  if (words.length === 0) return [];
-
-  const allWords = getAllWords();
-  const arabicPool = options?.widePool
-    ? shuffle(allWords.map((w) => w.arabicTranslation)).slice(0, 20)
-    : words.map((w) => w.arabicTranslation);
-  const englishPool = options?.widePool
-    ? shuffle(allWords.map((w) => w.word)).slice(0, 20)
-    : words.map((w) => w.word);
-
-  const exercises: Exercise[] = [];
-
-  for (const word of words) {
-    const arDistractors = pickDistractors(
-      options?.widePool ? [...arabicPool, ...words.map((w) => w.arabicTranslation)] : arabicPool,
-      word.arabicTranslation,
-      3,
-    );
-    exercises.push({
-      type: 'en-to-ar',
-      word,
-      prompt: word.word,
-      promptSub: word.pronunciation,
-      options: shuffle([word.arabicTranslation, ...arDistractors]),
-      correctAnswer: word.arabicTranslation,
-      isArabicOptions: true,
-    });
-
-    const enDistractors = pickDistractors(
-      options?.widePool ? [...englishPool, ...words.map((w) => w.word)] : englishPool,
-      word.word,
-      3,
-    );
-    exercises.push({
-      type: 'ar-to-en',
-      word,
-      prompt: word.arabicTranslation,
-      options: shuffle([word.word, ...enDistractors]),
-      correctAnswer: word.word,
-      isArabicOptions: false,
-    });
-
-    if (word.exampleSentence && word.exampleSentence.includes(word.word)) {
-      const blanked = word.exampleSentence.replace(
-        new RegExp(`\\b${word.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'),
-        '_____',
-      );
-      if (blanked !== word.exampleSentence) {
-        const fillDistractors = pickDistractors(englishPool, word.word, 3);
-        exercises.push({
-          type: 'fill-blank',
-          word,
-          prompt: blanked,
-          promptSub: word.arabicExampleTranslation,
-          options: shuffle([word.word, ...fillDistractors]),
-          correctAnswer: word.word,
-          isArabicOptions: false,
-        });
-      }
-    }
-  }
-
-  const shuffled = shuffle(exercises);
-  return options?.maxExercises ? shuffled.slice(0, options.maxExercises) : shuffled;
-}
-
-export function shuffleArray<T>(arr: T[]): T[] {
-  return shuffle(arr);
 }
 
 // ---------------------------------------------------------------------------
@@ -159,6 +90,7 @@ export function ExerciseRunner({
   onBack,
   onComplete,
   onAnswer,
+  onExerciseAnswer,
   hideDoneScreen = false,
   doneExtra,
   doneTitle = 'أحسنت!',
@@ -175,6 +107,7 @@ export function ExerciseRunner({
   const [wrongWords, setWrongWords] = useState<Word[]>([]);
   const [phase, setPhase] = useState<'practice' | 'done'>('practice');
   const [reviewRating, setReviewRating] = useState<ReviewRating | null>(null);
+  const [typedAnswer, setTypedAnswer] = useState('');
 
   const current = exercises[currentIdx];
 const isLastReviewQuestionForWord =
@@ -188,7 +121,8 @@ const isLastReviewQuestionForWord =
       if (answered || !current) return;
       setSelected(option);
       setAnswered(true);
-      const correct = option === current.correctAnswer;
+      const correct = isAdaptiveAnswerCorrect(option, current.correctAnswer, current.type);
+      recordExercisePerformance(current.word.id, current.type, correct);
       if (correct) {
         setCorrectCount((c) => c + 1);
       } else {
@@ -200,14 +134,15 @@ const isLastReviewQuestionForWord =
         recordWordAnswer(current.word.id, correct);
       }
       onAnswer?.(current.word, correct);
+      onExerciseAnswer?.(current, correct);
     },
-    [answered, current, onAnswer, reviewMode],
+    [answered, current, onAnswer, onExerciseAnswer, reviewMode],
   );
 
   const handleContinue = useCallback(() => {
     if (currentIdx + 1 >= exercises.length) {
       const total = exercises.length;
-      const score = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+      const score = calculateExerciseScore(correctCount, total);
       const stars = Math.max(1, Math.round(score / 33.3));
       const result: ExerciseSessionResult = { total, correct: correctCount, wrongWords, score, stars };
       onComplete?.(result);
@@ -217,6 +152,7 @@ const isLastReviewQuestionForWord =
       setSelected(null);
       setAnswered(false);
       setReviewRating(null);
+      setTypedAnswer('');
     }
   }, [currentIdx, exercises.length, correctCount, wrongWords, onComplete, hideDoneScreen]);
 
@@ -230,6 +166,7 @@ const isLastReviewQuestionForWord =
     setCorrectCount(0);
     setWrongWords([]);
     setReviewRating(null);
+    setTypedAnswer('');
     setPhase('practice');
   }, [onRestart]);
 
@@ -256,7 +193,7 @@ const isLastReviewQuestionForWord =
   // --- Done phase ---
   if (phase === 'done') {
     const total = exercises.length;
-    const score = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+    const score = calculateExerciseScore(correctCount, total);
     const stars = Math.max(1, Math.round(score / 33.3));
 
     return (
@@ -332,7 +269,7 @@ const isLastReviewQuestionForWord =
   }
 
   // --- Practice phase ---
-  const isCorrect = selected === current.correctAnswer;
+  const isCorrect = selected !== null && isAdaptiveAnswerCorrect(selected, current.correctAnswer, current.type);
   const isLast = currentIdx === exercises.length - 1;
 
   return (
@@ -370,21 +307,21 @@ const isLastReviewQuestionForWord =
         <div key={currentIdx} className="flex flex-col items-center text-center gap-3 pt-4 animate-fade-up">
           <p className="text-2xs text-text-muted">{EXERCISE_TYPE_LABELS[current.type]}</p>
 
-          {current.type === 'ar-to-en' ? (
+          {['ar-to-en', 'recall', 'definition-match'].includes(current.type) ? (
             <h2 className="text-4xl font-bold text-primary-500">{current.prompt}</h2>
           ) : (
             <h2 className="text-3xl font-bold text-text-primary ltr leading-relaxed">{current.prompt}</h2>
           )}
 
           {current.promptSub && (
-            current.type === 'fill-blank' ? (
+            ['fill-blank', 'sentence-completion', 'context-selection', 'mixed-review'].includes(current.type) ? (
               <p className="text-sm text-text-muted">{current.promptSub}</p>
             ) : (
               <p className="text-2xs text-text-muted ltr">{current.promptSub}</p>
             )
           )}
 
-          {current.type === 'en-to-ar' && (
+          {['en-to-ar', 'recognition'].includes(current.type) && (
             <button
               className="flex items-center gap-1.5 text-2xs text-text-muted hover:text-primary-500 transition-colors mt-1"
               onClick={() => {
@@ -404,7 +341,29 @@ const isLastReviewQuestionForWord =
         </div>
 
         <div className="flex flex-col gap-3">
-          {current.options.map((option) => {
+          {current.type === 'spelling' ? (
+            <form
+              className="flex flex-col gap-3"
+              onSubmit={(event) => { event.preventDefault(); if (typedAnswer.trim()) handleAnswer(typedAnswer); }}
+            >
+              <input
+                value={typedAnswer}
+                onChange={(event) => setTypedAnswer(event.target.value)}
+                disabled={answered}
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                aria-label="اكتب الكلمة الإنجليزية"
+                placeholder="اكتب الكلمة الإنجليزية هنا"
+                className="w-full rounded-lg border-2 border-border bg-surface p-4 text-lg text-text-primary ltr outline-none focus:border-primary-500 disabled:opacity-70"
+              />
+              {!answered && (
+                <Button type="submit" fullWidth size="lg" disabled={!typedAnswer.trim()}>
+                  تحقق من الإجابة
+                </Button>
+              )}
+            </form>
+          ) : current.options.map((option) => {
             const isThisCorrect = option === current.correctAnswer;
             const isThisSelected = option === selected;
 
